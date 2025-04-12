@@ -1,0 +1,17 @@
+name: AWS Lambda infra CI/CD Main
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'cdk/azure/**'
+      - 'software/infrastructure/azure/**'
+  workflow_dispatch:
+
+jobs:
+  call-workflow-build-deploy:
+    uses: ./.github/workflows/workflow-build-deploy-aws.yml
+    secrets:
+      aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+      aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
+      aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}

@@ -1,0 +1,16 @@
+{
+  "stacks": {
+    "Demo-Spring-Clean-Architecture-Lambda": {
+      "annotations": [
+      ],
+      "constructPath": "Demo-Spring-Clean-Architecture-Lambda",
+      "dependencies": [
+      ],
+      "name": "Demo-Spring-Clean-Architecture-Lambda",
+      "stackMetadataPath": "stacks/Demo-Spring-Clean-Architecture-Lambda/metadata.json",
+      "synthesizedStackPath": "stacks/Demo-Spring-Clean-Architecture-Lambda/cdk.tf.json",
+      "workingDirectory": "stacks/Demo-Spring-Clean-Architecture-Lambda"
+    }
+  },
+  "version": "0.20.11"
+}

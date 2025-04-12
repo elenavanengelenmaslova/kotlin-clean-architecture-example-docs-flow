@@ -1,0 +1,82 @@
+name: Standard CI/CD workflow for Kotlin Spring Cloud Function on Azure example
+
+on:
+  workflow_call:
+    inputs:
+      azure_region:
+        required: false
+        type: string
+        default: "West Europe"
+    secrets:
+      azure_subscription_id:
+        required: true
+      azure_client_id:
+        required: true
+      azure_client_secret:
+        required: true
+      azure_tenant_id:
+        required: true
+      azure_storage_account_name:
+        required: true
+      azure_storage_account_access_key:
+        required: true
+
+env:
+  DEPLOY_TARGET_REGION: ${{ inputs.azure_region }}
+  AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.azure_storage_account_name }}
+  AZURE_STORAGE_ACCOUNT_ACCESS_KEY: ${{ secrets.azure_storage_account_access_key }}
+  AZURE_CLIENT_ID: ${{ secrets.azure_client_id }}
+  AZURE_CLIENT_SECRET: ${{ secrets.azure_client_secret }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
+  AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
+  BUILD_NO: ${{ github.run_number }}
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config:
+          - {
+            component-name: "Kotlin Spring Cloud Function - Azure",
+            stack-name: "Demo-Azure-Clean-Architecture",
+          }
+    name: ${{ matrix.config.component-name }} deployment
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: >
+            {
+              "clientId": "${{ secrets.azure_client_id }}",
+              "clientSecret": "${{ secrets.azure_client_secret }}",
+              "subscriptionId": "${{ secrets.azure_subscription_id }}",
+              "tenantId": "${{ secrets.azure_tenant_id }}"
+            }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: 1.10.5
+
+      - name: Install CDKtf CLI
+        run: npm install -g cdktf-cli
+
+      - name: Generate Terraform files
+        run: |
+          cd ${GITHUB_WORKSPACE}/cdk/azure
+          cdktf get
+          cdktf synth
+
+      - name: Deploy with Terraform
+        run: |
+          cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${{ matrix.config.stack-name }}
+          terraform init
+          terraform apply -auto-approve

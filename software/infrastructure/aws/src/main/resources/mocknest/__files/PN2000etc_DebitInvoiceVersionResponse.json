@@ -1,0 +1,123 @@
+{
+  "_type": "InvoiceVersion",
+  "dueDate": [
+    2023,
+    6,
+    15
+  ],
+  "executedOperations": [
+    {
+      "_type": "InvoiceOperationVersion",
+      "dueDate": [
+        2023,
+        6,
+        15
+      ],
+      "internalDueDate": [
+        2023,
+        6,
+        12
+      ],
+      "invoiceStrategyOperationData": {
+        "_type": "BillingOperationData",
+        "notificationKey": "PensionCore_NewInvoiceCreated"
+      },
+      "operationDate": [
+        2023,
+        6,
+        1
+      ],
+      "operationId": "SendInvoiceStep"
+    }
+  ],
+  "futureOperations": [
+    {
+      "_type": "InvoiceOperationVersion",
+      "invoiceStrategyOperationData": {
+        "_type": "NotificationOperationData",
+        "notificationKey": "PensionCore_PaymentTransactionRequested"
+      },
+      "operationId": "PerformTransactionStep"
+    },
+    {
+      "_type": "InvoiceOperationVersion",
+      "invoiceStrategyOperationData": {
+        "_type": "NotificationOperationData",
+        "newStatus": "reminded",
+        "notificationKey": "PensionCore_InvoiceFirstReminder"
+      },
+      "operationId": "FirstReminderStep"
+    },
+    {
+      "_type": "InvoiceOperationVersion",
+      "invoiceStrategyOperationData": {
+        "_type": "NotificationOperationData",
+        "notificationKey": "PensionCore_InvoiceSecondReminder"
+      },
+      "operationId": "SecondReminderStep"
+    },
+    {
+      "_type": "InvoiceOperationVersion",
+      "invoiceStrategyOperationData": {
+        "_type": "NotificationOperationData",
+        "notificationKey": "PensionCore_InvoiceLegalReminder"
+      },
+      "operationId": "LegalReminderStep"
+    },
+    {
+      "_type": "InvoiceOperationVersion",
+      "invoiceStrategyOperationData": {
+        "_type": "NotificationOperationData",
+        "notificationKey": "PensionCore_InvoicePhoneReminder"
+      },
+      "operationId": "PhoneReminderStep"
+    },
+    {
+      "_type": "InvoiceOperationVersion",
+      "invoiceStrategyOperationData": {
+        "_type": "NotificationOperationData",
+        "notificationKey": "PensionCore_InvoiceTransferToBailiff"
+      },
+      "operationId": "BailiffStep"
+    }
+  ],
+  "internalDueDate": [
+    2023,
+    6,
+    12
+  ],
+  "invoiceSpecification": {
+    "_type": "EmployerInvoiceSpecification",
+    "amount": 1784.92,
+    "amountPenalties": 0.0,
+    "amountPenaltiesTwk": 0.0,
+    "amountRegularPremium": 892.46,
+    "amountTwkPremium": 892.46,
+    "billingFrequency": "month",
+    "fromDate": [
+      2023,
+      4,
+      1
+    ],
+    "invoiceDate": [
+      2023,
+      6,
+      1
+    ],
+    "invoiceId": "PN200000001",
+    "payerId": "E1009",
+    "requestedDueDate": [
+      2023,
+      6,
+      15
+    ],
+    "toDate": [
+      2023,
+      5,
+      1
+    ]
+  },
+  "invoiceStatus": "reconciled",
+  "invoiceStrategyId": "NlEmployerInvoiceStrategy",
+  "partiallyPaidAmount": 784.92
+}

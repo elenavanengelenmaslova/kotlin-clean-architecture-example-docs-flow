@@ -1,0 +1,14 @@
+{
+  "language": "java",
+  "app": "gradle run",
+  "terraformProviders": [
+    "hashicorp/aws@~> 5.0"
+  ],
+  "terraformModules": [],
+  "codeMakerOutput": "generated",
+  "context": {
+    "excludeStackIdFromLogicalIds": "true",
+    "allowSepCharsInLogicalIds": "true"
+  },
+  "projectId": "57969fe8-e6df-4cf4-bcd8-0f3d3570eecd"
+}

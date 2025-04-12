@@ -1,0 +1,56 @@
+{
+  "compositeResponse": [
+    {
+      "body": {
+        "totalSize": 1,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "PayrollTaxNumber__c",
+              "url": "/services/data/v59.0/sobjects/PayrollTaxNumber__c/a107Y00000BFGaaQAH"
+            },
+            "Id": "a107Y00000BFGaaQAH",
+            "Name": "975312461L01",
+            "Employer__r": {
+              "attributes": {
+                "type": "Account",
+                "url": "/services/data/v59.0/sobjects/Account/0017Y00002A0VU1QAN"
+              },
+              "EmployerId__c": "E100000047",
+              "Id": "0017Y00002A0VU1QAN"
+            },
+            "EffectiveTo__c": null
+          }
+        ]
+      },
+      "httpHeaders": {},
+      "httpStatusCode": 200,
+      "referenceId": "PayrollTaxNumberRequest"
+    },
+    {
+      "body": {
+        "totalSize": 1,
+        "done": true,
+        "records": [
+          {
+            "attributes": {
+              "type": "FinServ__AccountAccountRelation__c",
+              "url": "/services/data/v59.0/sobjects/FinServ__AccountAccountRelation__c/a017Y00000UR4bPQAT"
+            },
+            "FinServ__RelatedAccount__r": {
+              "attributes": {
+                "type": "Account",
+                "url": "/services/data/v59.0/sobjects/Account/0017Y000020yT8JQAU"
+              },
+              "PensionFundId__c": "021"
+            }
+          }
+        ]
+      },
+      "httpHeaders": {},
+      "httpStatusCode": 200,
+      "referenceId": "AcountAccountRequest"
+    }
+  ]
+}
