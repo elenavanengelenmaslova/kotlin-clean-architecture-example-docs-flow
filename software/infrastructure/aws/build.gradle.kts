@@ -2,17 +2,10 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTra
 import org.gradle.api.publish.maven.MavenPublication
 plugins {
     kotlin("plugin.spring")
-    id("org.springframework.boot") version "3.3.9"
+    id("org.springframework.boot")
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("maven-publish")
     id("org.springframework.boot.experimental.thin-launcher") version "1.0.31.RELEASE"
-}
-apply(plugin = "io.spring.dependency-management")
-
-buildscript {
-    dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:3.3.9")
-    }
 }
 
 val smithyKotlinVersion = "1.4.11"
@@ -41,13 +34,6 @@ configurations {
     runtimeClasspath {
         exclude("org.apache.httpcomponents")
         exclude("org.jetbrains")
-    }
-}
-repositories {
-    mavenCentral()
-    gradlePluginPortal()
-    maven {
-        url = uri("https://repo.spring.io/milestone")
     }
 }
 

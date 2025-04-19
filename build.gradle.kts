@@ -6,39 +6,56 @@
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
 
 plugins {
-    kotlin("jvm") version "2.1.0"
-    kotlin("plugin.spring") version "2.1.0"
+    kotlin("jvm") version "2.1.0" apply false
+    kotlin("plugin.spring") version "2.1.0" apply false
+    id("org.springframework.boot") version "3.3.9" apply false
+    id("io.spring.dependency-management") version "1.1.7" apply false
 }
-allprojects {
-    buildscript {
-        repositories {
-            mavenCentral()
-        }
-    }
+
+subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "io.spring.dependency-management")
+
 
     repositories {
         mavenCentral()
     }
 
-    dependencies {
-        implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-        testImplementation(kotlin("test"))
-    }
-
-    tasks.test {
-        useJUnitPlatform()
-        testLogging {
-            setExceptionFormat("full")
+    configure<DependencyManagementExtension> {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:3.3.9")
         }
     }
-    tasks.withType<KotlinJvmCompile> {
-        compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
+    // Only apply common dependencies if the project declares them
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        dependencies {
+            "implementation"("io.github.oshai:kotlin-logging-jvm:7.0.0")
+            "testImplementation"(kotlin("test"))
+        }
+
+        tasks.withType<KotlinJvmCompile>().configureEach {
+            compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
+        }
     }
-    java {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+
+    // Only apply Java config to projects that use the Java plugin
+    plugins.withId("java") {
+        extensions.configure<JavaPluginExtension> {
+            sourceCompatibility = JavaVersion.VERSION_21
+            targetCompatibility = JavaVersion.VERSION_21
+            toolchain {
+                languageVersion.set(JavaLanguageVersion.of(21))
+            }
+        }
+
+        tasks.withType<Test>().configureEach {
+            useJUnitPlatform()
+            testLogging {
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            }
+        }
     }
 }

@@ -5,27 +5,23 @@
 
 @startuml
 
-actor "Mock Admin" as Admin
-actor "Client App" as Client
+actor "Writer" as Writer
+actor "Reviewer" as Reviewer
 
-rectangle "MockNest\n(Serverless WireMock)" {
-  (Create Mock) as Create
-  (Update Mock) as Update
-  (Delete Mock) as Delete
-  (Reset All Mocks) as Reset
-  (Call Mocked API) as Call
+rectangle "Document Review System" {
+  (Upload Document) as Upload
+  (Analyze Document) as Analyze
+  (Send Email to Reviewer) as SendEmail
+  (Access Document with Token) as AccessLink
 }
 
-Admin --> Create
-Admin --> Update
-Admin --> Delete
-Admin --> Reset
+Writer --> Upload
+Upload --> Analyze
+Analyze --> SendEmail
+SendEmail --> Reviewer
+Reviewer --> AccessLink
 
-Client --> Call
 @enduml
-
-
-
 ```
 
 # Solution Architecture

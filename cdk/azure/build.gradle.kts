@@ -13,7 +13,7 @@ dependencies {
 application {
     mainClass.set("com.example.cdk.azure.AppKt")
 }
-
-repositories {
-    mavenCentral()
+tasks.withType<JavaCompile>().configureEach {
+    options.isFork = true
+    options.forkOptions.jvmArgs = listOf("-Xmx4g")
 }

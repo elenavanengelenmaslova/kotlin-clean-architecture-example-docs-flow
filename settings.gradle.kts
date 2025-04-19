@@ -1,4 +1,4 @@
-rootProject.name = "kotlin-spring-cloud-function-clean-architecture-demo"
+rootProject.name = "kotlin-clean-architecture-example-docs-flow"
 
 pluginManagement {
     repositories {
