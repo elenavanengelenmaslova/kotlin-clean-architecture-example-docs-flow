@@ -97,7 +97,7 @@
         "name": "docs-flow-logs",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
         "retention_in_days": 7,
-        "sku": "Free"
+        "sku": "PerGB2018"
       }
     },
     "azurerm_role_assignment": {

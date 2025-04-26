@@ -172,7 +172,7 @@ class AzureStack(scope: Construct, id: String) :
                 .name("docs-flow-logs")
                 .location(resourceGroup.location)
                 .resourceGroupName(resourceGroup.name)
-                .sku("Free")  // Free SKU
+                .sku("PerGB2018")
                 .retentionInDays(7)
                 .build()
         )
