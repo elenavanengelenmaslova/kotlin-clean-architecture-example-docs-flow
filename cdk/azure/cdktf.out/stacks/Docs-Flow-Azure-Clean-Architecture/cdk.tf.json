@@ -47,7 +47,8 @@
         "application_type": "java",
         "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
         "name": "docs-flow-spring-cloud-app-insights",
-        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "workspace_id": "${azurerm_log_analytics_workspace.DocsFlowLogAnalyticsWorkspace.id}"
       }
     },
     "azurerm_linux_function_app": {
@@ -82,6 +83,21 @@
         },
         "storage_account_access_key": "${var.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}",
         "storage_account_name": "${var.AZURE_STORAGE_ACCOUNT_NAME}"
+      }
+    },
+    "azurerm_log_analytics_workspace": {
+      "DocsFlowLogAnalyticsWorkspace": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowLogAnalyticsWorkspace",
+            "uniqueId": "DocsFlowLogAnalyticsWorkspace"
+          }
+        },
+        "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
+        "name": "docs-flow-logs-${tftoken[token.12]}",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "retention_in_days": 7,
+        "sku": "Free"
       }
     },
     "azurerm_role_assignment": {
@@ -154,7 +170,7 @@
           "azurerm_storage_account.docs-flow-mocknest-sa"
         ],
         "name": "docs-flow-mocknest-mappings",
-        "storage_account_name": "${azurerm_storage_account.docs-flow-mocknest-sa.name}"
+        "storage_account_id": "${azurerm_storage_account.docs-flow-mocknest-sa.id}"
       }
     }
   },

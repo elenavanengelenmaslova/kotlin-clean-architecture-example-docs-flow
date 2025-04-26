@@ -6,6 +6,8 @@ import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationIns
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroup
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroupConfig
 import com.hashicorp.cdktf.providers.azurerm.linux_function_app.*
+import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspace
+import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspaceConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProvider
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderFeatures
@@ -144,7 +146,7 @@ class AzureStack(scope: Construct, id: String) :
             "docs-flow-mocknest-container",
             StorageContainerConfig.builder()
                 .name("docs-flow-mocknest-mappings")  // Blob storage container name
-                .storageAccountName(storageAccountMockNest.name)
+                .storageAccountId(storageAccountMockNest.id)
                 .containerAccessType("private")  // Private access for security
                 .dependsOn(listOf(storageAccountMockNest))
                 .build()
@@ -163,6 +165,18 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+        val logAnalyticsWorkspace = LogAnalyticsWorkspace(
+            this,
+            "DocsFlowLogAnalyticsWorkspace",
+            LogAnalyticsWorkspaceConfig.builder()
+                .name("docs-flow-logs-${resourceGroup.location.lowercase()}")  // You can adjust the name
+                .location(resourceGroup.location)
+                .resourceGroupName(resourceGroup.name)
+                .sku("Free")  // Standard SKU
+                .retentionInDays(7)  // Optional: data retention
+                .build()
+        )
+
         // Create an Application Insights resource
         val appInsights = ApplicationInsights(
             this, "AppInsights",
@@ -171,6 +185,7 @@ class AzureStack(scope: Construct, id: String) :
                 .resourceGroupName(resourceGroup.name)
                 .location(resourceGroup.location)
                 .applicationType("java")
+                .workspaceId(logAnalyticsWorkspace.id)
                 .build()
         )
         val storageAccountAccessKeyVar = TerraformVariable(
