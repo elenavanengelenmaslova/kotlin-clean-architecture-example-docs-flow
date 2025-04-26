@@ -169,11 +169,11 @@ class AzureStack(scope: Construct, id: String) :
             this,
             "DocsFlowLogAnalyticsWorkspace",
             LogAnalyticsWorkspaceConfig.builder()
-                .name("docs-flow-logs-${resourceGroup.location.lowercase()}")  // You can adjust the name
+                .name("docs-flow-logs")
                 .location(resourceGroup.location)
                 .resourceGroupName(resourceGroup.name)
-                .sku("Free")  // Standard SKU
-                .retentionInDays(7)  // Optional: data retention
+                .sku("Free")  // Free SKU
+                .retentionInDays(7)
                 .build()
         )
 
