@@ -5,7 +5,6 @@ import com.example.clean.architecture.persistence.ObjectStorageInterface
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
-import java.nio.charset.StandardCharsets
 
 private val logger = KotlinLogging.logger {}
 
@@ -15,18 +14,18 @@ class BlobStorageObjectStore(
     private val containerClient: BlobContainerClient
 ) : ObjectStorageInterface {
 
-    override fun save(id: String, content: String): String {
+    override fun save(id: String, content: ByteArray): String {
         logger.info { "Saving mapping with id: $id" }
         val blobClient = containerClient.getBlobClient(id)
-        blobClient.upload(content.byteInputStream(), true)
+        blobClient.upload(content.inputStream() , true)
         return blobClient.blobUrl
     }
 
-    override fun get(id: String): String? {
+    override fun get(id: String): ByteArray? {
         logger.info { "Getting mapping with id: $id" }
         val blobClient = containerClient.getBlobClient(id)
         return if (blobClient.exists()) {
-            blobClient.downloadContent().toBytes().toString(StandardCharsets.UTF_8)
+            blobClient.downloadContent().toBytes()
         } else {
             logger.info { "Mapping with id: $id not found" }
             null

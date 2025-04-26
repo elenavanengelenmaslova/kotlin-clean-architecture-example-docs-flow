@@ -196,7 +196,7 @@ class AwsStack(
                     LambdaFunctionEnvironment.builder()
                         .variables(
                             mapOf(
-                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "router",
+                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "uploadDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
                                 //Stop at level 1 (C1 compiler)
@@ -214,48 +214,50 @@ class AwsStack(
             "DocsFlow-Spring-Clean-Architecture-API",
             ApiGatewayRestApiConfig.builder()
                 .name("DocsFlow-Spring-Clean-Architecture-API")
+                .binaryMediaTypes(listOf("*/*"))
                 .description("API for Spring Clean Architecture Example")
                 // Using REGIONAL endpoint type
                 .build()
         )
 
-        // Create API Gateway Resource
-        val resource = ApiGatewayResource(
+        // Create API Gateway Resource for docs-flow endpoint
+        val docsFlowResource = ApiGatewayResource(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Resource",
+            "DocsFlow-Resource",
             ApiGatewayResourceConfig.builder()
                 .restApiId(api.id)
                 .parentId(api.rootResourceId)
-                .pathPart("{proxy+}")
+                .pathPart("docs-flow")
                 .build()
         )
 
-        // Create API Gateway Method
-        val method = ApiGatewayMethod(
+        // Create API Gateway Method for docs-flow endpoint (POST only)
+        val docsFlowMethod = ApiGatewayMethod(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Method",
+            "DocsFlow-Method",
             ApiGatewayMethodConfig.builder()
                 .restApiId(api.id)
-                .resourceId(resource.id)
-                .httpMethod("ANY")
+                .resourceId(docsFlowResource.id)
+                .httpMethod("POST")  // Only allow POST method
                 .authorization("NONE")
                 .apiKeyRequired(true)  // Require API key
                 .build()
         )
 
-        // Create Lambda integration for API Gateway
-        val integration = ApiGatewayIntegration(
+        // Create Lambda integration for docs-flow endpoint
+        val docsFlowIntegration = ApiGatewayIntegration(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Integration",
+            "DocsFlow-Integration",
             ApiGatewayIntegrationConfig.builder()
                 .restApiId(api.id)
-                .resourceId(resource.id)
-                .httpMethod(method.httpMethod)
+                .resourceId(docsFlowResource.id)
+                .httpMethod(docsFlowMethod.httpMethod)
                 .integrationHttpMethod("POST")
                 .type("AWS_PROXY")
                 .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
                 .build()
         )
+
 
         // Create API Gateway Deployment
         val deployment = ApiGatewayDeployment(
@@ -263,7 +265,7 @@ class AwsStack(
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
-                .dependsOn(listOf(integration))
+                .dependsOn(listOf(docsFlowIntegration))
                 .build()
         )
 
@@ -319,7 +321,19 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda
+        // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
+        LambdaPermission(
+            this,
+            "DocsFlow-Permission",
+            LambdaPermissionConfig.builder()
+                .functionName(lambdaFunction.functionName)
+                .action("lambda:InvokeFunction")
+                .principal("apigateway.amazonaws.com")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/POST/docs-flow")
+                .build()
+        )
+
+        // Grant API Gateway permission to invoke Lambda for proxy endpoints
         LambdaPermission(
             this,
             "DocsFlow-Spring-Clean-Architecture-Permission",
@@ -327,7 +341,7 @@ class AwsStack(
                 .functionName(lambdaFunction.functionName)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${method.httpMethod}/${resource.pathPart}")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${docsFlowMethod.httpMethod}/${docsFlowResource.pathPart}")
                 .build()
         )
     }

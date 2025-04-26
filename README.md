@@ -1,5 +1,30 @@
 # Getting Started
 
+## API Endpoints
+
+### docs-flow
+- **Endpoint**: `/docs-flow`
+- **Method**: POST
+- **Description**: Accepts Word documents and stores them in blob storage (Azure) or S3 (AWS)
+- **Request Body**: Word document content
+- **Response**: JSON with document ID and URL
+  ```json
+  {
+    "id": "document-uuid",
+    "url": "storage-url"
+  }
+  ```
+
+### __admin
+- **Endpoint**: `/__admin/{route}`
+- **Methods**: GET, POST, PUT, DELETE
+- **Description**: Admin API for managing MockNest mappings
+
+### mocknest
+- **Endpoint**: `/mocknest/{route}`
+- **Methods**: GET, POST, PUT, DELETE, PATCH
+- **Description**: Client API for MockNest service
+
 ## Use cases
 ```plantuml
 
@@ -81,4 +106,3 @@ These additional references should also help you:
 
 * [Gradle Build Scans – insights for your project's build](https://scans.gradle.com#gradle)
 * [Various sample apps using Spring Cloud Function](https://github.com/spring-cloud/spring-cloud-function/tree/main/spring-cloud-function-samples)
-

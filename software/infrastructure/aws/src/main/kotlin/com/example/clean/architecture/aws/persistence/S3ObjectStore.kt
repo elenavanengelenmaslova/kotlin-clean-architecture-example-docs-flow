@@ -12,7 +12,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Repository
-import java.nio.charset.StandardCharsets
 
 private val logger = KotlinLogging.logger {}
 
@@ -22,11 +21,10 @@ class S3ObjectStore(
     private val s3Client: S3Client,
 ) : ObjectStorageInterface {
 
-    override fun save(id: String, content: String): String = runBlocking {
+    override fun save(id: String, content: ByteArray): String = runBlocking {
         logger.info { "Saving mapping with id: $id" }
         runCatching {
-            val contentBytes = content.toByteArray(StandardCharsets.UTF_8)
-            val byteStream = ByteStream.fromBytes(contentBytes)
+            val byteStream = ByteStream.fromBytes(content)
             s3Client.putObject(
                 PutObjectRequest {
                     bucket = bucketName
@@ -40,15 +38,15 @@ class S3ObjectStore(
 
     }
 
-    override fun get(id: String): String? = runBlocking {
+    override fun get(id: String): ByteArray? = runBlocking {
         logger.info { "Getting mapping with id: $id" }
         runCatching {
-            var content: String? = null
+            var content: ByteArray? = null
             s3Client.getObject(GetObjectRequest {
                 bucket = bucketName
                 key = id
             }) { response ->
-                content = response.body?.toByteArray()?.toString(StandardCharsets.UTF_8)
+                content = response.body?.toByteArray()
             }
             content
         }.onFailure { e ->
