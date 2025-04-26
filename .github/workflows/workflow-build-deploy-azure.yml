@@ -30,7 +30,7 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   BUILD_NO: ${{ github.run_number }}
-  AZURE_RESOURCE_GROUP_NAME: "DefaultResourceGroup-WEU"
+  AZURE_RESOURCE_GROUP_NAME: "CleanArchitectureResourceGroup-WEU"
 
 jobs:
   deploy-infra:
@@ -40,8 +40,8 @@ jobs:
       matrix:
         config:
           - {
-            component-name: "Demo Spring Clean Architecture Azure Functions",
-            stack-name: "Demo-Azure-Clean-Architecture"
+            component-name: "Docs Flow Spring Clean Architecture Azure Functions",
+            stack-name: "Docs-Flow-Azure-Clean-Architecture"
           }
 
     steps:

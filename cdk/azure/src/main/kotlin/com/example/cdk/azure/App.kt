@@ -4,6 +4,6 @@ import com.hashicorp.cdktf.App
 
 fun main() {
     val app = App()
-    AzureStack(app, "Demo-Azure-Clean-Architecture")
+    AzureStack(app, "Docs-Flow-Azure-Clean-Architecture")
     app.synth()
 }

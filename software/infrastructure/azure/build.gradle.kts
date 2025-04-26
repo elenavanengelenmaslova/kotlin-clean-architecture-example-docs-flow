@@ -101,8 +101,8 @@ tasks.named("compileJava") {
 }
 
 azurefunctions {
-    resourceGroup = "DefaultResourceGroup-WEU"
-    appName = "demo-spring-clean-architecture-fun"
+    resourceGroup = "CleanArchitectureResourceGroup-WEU"
+    appName = "docs-flow-spring-clean-architecture-fun"
     region = "westeurope"
     appSettings = mapOf(
         "WEBSITE_RUN_FROM_PACKAGE" to "1"

@@ -1,0 +1,291 @@
+{
+  "//": {
+    "metadata": {
+      "backend": "s3",
+      "stackName": "Docs-Flow-Spring-Clean-Architecture-Lambda",
+      "version": "0.20.11"
+    },
+    "outputs": {
+    }
+  },
+  "provider": {
+    "aws": [
+      {
+        "region": "${var.DEPLOY_TARGET_REGION}"
+      }
+    ],
+    "random": [
+      {
+      }
+    ]
+  },
+  "resource": {
+    "aws_api_gateway_api_key": {
+      "DocsFlow-Spring-Clean-Architecture-ApiKey": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-ApiKey",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-ApiKey"
+          }
+        },
+        "description": "API Key for Spring Clean Architecture Example",
+        "enabled": true,
+        "name": "DocsFlow-Spring-Clean-Architecture-ApiKey"
+      }
+    },
+    "aws_api_gateway_deployment": {
+      "DocsFlow-Spring-Clean-Architecture-Deployment": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Deployment",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Deployment"
+          }
+        },
+        "depends_on": [
+          "aws_api_gateway_integration.DocsFlow-Spring-Clean-Architecture-Integration"
+        ],
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
+      }
+    },
+    "aws_api_gateway_integration": {
+      "DocsFlow-Spring-Clean-Architecture-Integration": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Integration",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Integration"
+          }
+        },
+        "http_method": "${aws_api_gateway_method.DocsFlow-Spring-Clean-Architecture-Method.http_method}",
+        "integration_http_method": "POST",
+        "resource_id": "${aws_api_gateway_resource.DocsFlow-Spring-Clean-Architecture-Resource.id}",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
+        "type": "AWS_PROXY",
+        "uri": "arn:aws:apigateway:${var.DEPLOY_TARGET_REGION}:lambda:path/2015-03-31/functions/${aws_lambda_function.DocsFlow-Spring-Clean-Architecture-Fun.arn}/invocations"
+      }
+    },
+    "aws_api_gateway_method": {
+      "DocsFlow-Spring-Clean-Architecture-Method": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Method",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Method"
+          }
+        },
+        "api_key_required": true,
+        "authorization": "NONE",
+        "http_method": "ANY",
+        "resource_id": "${aws_api_gateway_resource.DocsFlow-Spring-Clean-Architecture-Resource.id}",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
+      }
+    },
+    "aws_api_gateway_resource": {
+      "DocsFlow-Spring-Clean-Architecture-Resource": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Resource",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Resource"
+          }
+        },
+        "parent_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.root_resource_id}",
+        "path_part": "{proxy+}",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
+      }
+    },
+    "aws_api_gateway_rest_api": {
+      "DocsFlow-Spring-Clean-Architecture-API": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-API",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-API"
+          }
+        },
+        "description": "API for Spring Clean Architecture Example",
+        "name": "DocsFlow-Spring-Clean-Architecture-API"
+      }
+    },
+    "aws_api_gateway_stage": {
+      "DocsFlow-Spring-Clean-Architecture-Stage": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Stage",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Stage"
+          }
+        },
+        "deployment_id": "${aws_api_gateway_deployment.DocsFlow-Spring-Clean-Architecture-Deployment.id}",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
+        "stage_name": "demo"
+      }
+    },
+    "aws_api_gateway_usage_plan": {
+      "DocsFlow-Spring-Clean-Architecture-UsagePlan": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-UsagePlan",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-UsagePlan"
+          }
+        },
+        "api_stages": [
+          {
+            "api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
+            "stage": "${aws_api_gateway_stage.DocsFlow-Spring-Clean-Architecture-Stage.stage_name}"
+          }
+        ],
+        "description": "Usage Plan for Spring Clean Architecture Example",
+        "name": "DocsFlow-Spring-Clean-Architecture-UsagePlan"
+      }
+    },
+    "aws_api_gateway_usage_plan_key": {
+      "DocsFlow-Spring-Clean-Architecture-UsagePlanKey": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-UsagePlanKey",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-UsagePlanKey"
+          }
+        },
+        "key_id": "${aws_api_gateway_api_key.DocsFlow-Spring-Clean-Architecture-ApiKey.id}",
+        "key_type": "API_KEY",
+        "usage_plan_id": "${aws_api_gateway_usage_plan.DocsFlow-Spring-Clean-Architecture-UsagePlan.id}"
+      }
+    },
+    "aws_iam_policy": {
+      "DocsFlow-Spring-Clean-Architecture-Fun-Policy": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Fun-Policy",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Fun-Policy"
+          }
+        },
+        "depends_on": [
+          "aws_s3_bucket.DocsFlowMockNestMappingsBucket"
+        ],
+        "name": "DocsFlow-Spring-Clean-Architecture-Fun-Policy",
+        "policy": "{\n    \"Version\": \"2012-10-17\",\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"logs:CreateLogGroup\",\n                \"logs:CreateLogStream\",\n                \"logs:PutLogEvents\"\n            ],\n            \"Resource\": \"arn:aws:logs:*:*:*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:PutObject\",\n                \"s3:GetObject\",\n                \"s3:ListBucket\",\n                \"s3:DeleteObject\"\n            ],\n            \"Resource\": [\n                \"${aws_s3_bucket.DocsFlowMockNestMappingsBucket.arn}\",          \n                \"${aws_s3_bucket.DocsFlowMockNestMappingsBucket.arn}/*\"   \n            ]\n        }\n    ]\n}"
+      }
+    },
+    "aws_iam_role": {
+      "DocsFlow-Spring-Clean-Architecture-Fun-Role": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Fun-Role",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Fun-Role"
+          }
+        },
+        "assume_role_policy": "{\n                    \"Version\": \"2012-10-17\",\n                    \"Statement\": [\n                        {\n                            \"Action\": \"sts:AssumeRole\",\n                            \"Principal\": {\"Service\": \"lambda.amazonaws.com\"},\n                            \"Effect\": \"Allow\"\n                        }\n                    ]\n                }",
+        "name": "DocsFlow-Spring-Clean-Architecture-Fun-Role"
+      }
+    },
+    "aws_iam_role_policy": {
+      "DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy"
+          }
+        },
+        "name": "DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy",
+        "policy": "${aws_iam_policy.DocsFlow-Spring-Clean-Architecture-Fun-Policy.policy}",
+        "role": "${aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role.name}"
+      }
+    },
+    "aws_lambda_function": {
+      "DocsFlow-Spring-Clean-Architecture-Fun": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Fun",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Fun"
+          }
+        },
+        "depends_on": [
+          "aws_s3_bucket.DocsFlowMockNestMappingsBucket",
+          "aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role"
+        ],
+        "environment": {
+          "variables": {
+            "AWS_S3_BUCKET_NAME": "${aws_s3_bucket.DocsFlowMockNestMappingsBucket.bucket}",
+            "JAVA_TOOL_OPTIONS": "-XX:+TieredCompilation -XX:TieredStopAtLevel=1",
+            "MAIN_CLASS": "com.example.clean.architecture.Application",
+            "SPRING_CLOUD_FUNCTION_DEFINITION": "router"
+          }
+        },
+        "function_name": "DocsFlow-Spring-Clean-Architecture-Fun",
+        "handler": "org.springframework.cloud.function.adapter.aws.FunctionInvoker",
+        "memory_size": 1024,
+        "role": "${aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role.arn}",
+        "runtime": "java21",
+        "s3_bucket": "lambda-deployment-clean-architecture-example",
+        "s3_key": "docs-flow-aws-function.jar",
+        "source_code_hash": "${filebase64sha256(\"../../../../../build/dist/docs-flow-aws-function.jar\")}",
+        "timeout": 120
+      }
+    },
+    "aws_lambda_permission": {
+      "DocsFlow-Spring-Clean-Architecture-Permission": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-Spring-Clean-Architecture-Permission",
+            "uniqueId": "DocsFlow-Spring-Clean-Architecture-Permission"
+          }
+        },
+        "action": "lambda:InvokeFunction",
+        "function_name": "${aws_lambda_function.DocsFlow-Spring-Clean-Architecture-Fun.function_name}",
+        "principal": "apigateway.amazonaws.com",
+        "source_arn": "arn:aws:execute-api:${var.DEPLOY_TARGET_REGION}:${var.DEPLOY_TARGET_ACCOUNT}:${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}/*/${aws_api_gateway_method.DocsFlow-Spring-Clean-Architecture-Method.http_method}/${aws_api_gateway_resource.DocsFlow-Spring-Clean-Architecture-Resource.path_part}"
+      }
+    },
+    "aws_s3_bucket": {
+      "DocsFlowMockNestMappingsBucket": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlowMockNestMappingsBucket",
+            "uniqueId": "DocsFlowMockNestMappingsBucket"
+          }
+        },
+        "bucket": "docs-flow-mocknest-mappings-${random_string.bucketSuffix.result}"
+      }
+    },
+    "random_string": {
+      "bucketSuffix": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/bucketSuffix",
+            "uniqueId": "bucketSuffix"
+          }
+        },
+        "length": 8,
+        "numeric": false,
+        "special": false,
+        "upper": false
+      }
+    }
+  },
+  "terraform": {
+    "backend": {
+      "s3": {
+        "bucket": "kotlin-lambda-terraform-state",
+        "encrypt": true,
+        "key": "docs-flow-terraform-cdk/terraform.tfstate",
+        "region": "${region}"
+      }
+    },
+    "required_providers": {
+      "aws": {
+        "source": "aws",
+        "version": "5.88.0"
+      },
+      "random": {
+        "source": "hashicorp/random",
+        "version": "3.7.1"
+      }
+    }
+  },
+  "variable": {
+    "DEPLOY_TARGET_ACCOUNT": {
+      "description": "The AWS account",
+      "type": "string"
+    },
+    "DEPLOY_TARGET_REGION": {
+      "description": "The AWS region",
+      "type": "string"
+    }
+  }
+}

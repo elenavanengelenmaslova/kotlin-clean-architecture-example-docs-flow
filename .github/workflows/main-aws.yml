@@ -1,7 +1,7 @@
 name: AWS Lambda infra CI/CD Main
 on:
   push:
-    branches: [ xxmain ]
+    branches: [ main ]
     paths-ignore:
       - '**.md'
       - 'docs/**'

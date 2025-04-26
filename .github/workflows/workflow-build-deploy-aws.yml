@@ -65,8 +65,8 @@ jobs:
         config:
           [
             {
-              component-name: "Demo Spring Clean Architecture AWS Lambda",
-              stack-name: "Demo-Spring-Clean-Architecture-Lambda",
+              component-name: "Docs Flow Spring Clean Architecture AWS Lambda",
+              stack-name: "Docs-Flow-Spring-Clean-Architecture-Lambda",
             }
           ]
     name: ${{ matrix.config.component-name }} deployment
@@ -85,7 +85,7 @@ jobs:
           path: build/dist/
 
       - name: Hash JAR file before upload
-        run: sha256sum build/dist/demo-aws-function.jar
+        run: sha256sum build/dist/docs-flow-aws-function.jar
 
       - name: Configure aws credentials for CDK deployment
         uses: aws-actions/configure-aws-credentials@master
@@ -95,7 +95,7 @@ jobs:
           aws-region: ${{ inputs.aws_region }}
 
       - name: Upload Lambda JAR to S3
-        run: aws s3 cp build/dist/demo-aws-function.jar s3://lambda-deployment-clean-architecture-example/demo-aws-function.jar --region ${{ inputs.aws_region }}
+        run: aws s3 cp build/dist/docs-flow-aws-function.jar s3://lambda-deployment-clean-architecture-example/docs-flow-aws-function.jar --region ${{ inputs.aws_region }}
 
       - uses: actions/setup-node@v4
         with:

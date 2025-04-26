@@ -1,0 +1,16 @@
+{
+  "stacks": {
+    "Docs-Flow-Azure-Clean-Architecture": {
+      "annotations": [
+      ],
+      "constructPath": "Docs-Flow-Azure-Clean-Architecture",
+      "dependencies": [
+      ],
+      "name": "Docs-Flow-Azure-Clean-Architecture",
+      "stackMetadataPath": "stacks/Docs-Flow-Azure-Clean-Architecture/metadata.json",
+      "synthesizedStackPath": "stacks/Docs-Flow-Azure-Clean-Architecture/cdk.tf.json",
+      "workingDirectory": "stacks/Docs-Flow-Azure-Clean-Architecture"
+    }
+  },
+  "version": "0.20.12"
+}

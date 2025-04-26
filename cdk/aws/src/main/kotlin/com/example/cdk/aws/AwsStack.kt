@@ -1,9 +1,6 @@
 package com.example.cdk.aws
 
-import com.hashicorp.cdktf.Fn
-import com.hashicorp.cdktf.S3Backend
-import com.hashicorp.cdktf.S3BackendConfig
-import com.hashicorp.cdktf.TerraformStack
+import com.hashicorp.cdktf.*
 import com.hashicorp.cdktf.providers.aws.api_gateway_api_key.ApiGatewayApiKey
 import com.hashicorp.cdktf.providers.aws.api_gateway_api_key.ApiGatewayApiKeyConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_deployment.ApiGatewayDeployment
@@ -49,10 +46,25 @@ class AwsStack(
 ) : TerraformStack(scope, id) {
 
     init {
-        // Get the region from environment variables
-        val region =
-            System.getenv("DEPLOY_TARGET_REGION")
+        val regionVar = TerraformVariable(
+            this,
+            "DEPLOY_TARGET_REGION",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("The AWS region")
+                .build()
+        )
+        val region = regionVar.stringValue
 
+        val accountVar = TerraformVariable(
+            this,
+            "DEPLOY_TARGET_ACCOUNT",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("The AWS account")
+                .build()
+        )
+        val account = accountVar.stringValue
         // Configure the AWS Provider
         AwsProvider(
             this,
@@ -65,9 +77,9 @@ class AwsStack(
         S3Backend(
             this,
             S3BackendConfig.builder()
-                .region(region)
+                .region("\${region}")
                 .bucket("kotlin-lambda-terraform-state")
-                .key("demo-terraform-cdk/terraform.tfstate")
+                .key("docs-flow-terraform-cdk/terraform.tfstate")
                 .encrypt(true).build()
         )
 
@@ -84,17 +96,17 @@ class AwsStack(
         // Define S3 bucket for MockNest mappings
         val s3Bucket = S3Bucket(
             this,
-            "DemoMockNestMappingsBucket",
+            "DocsFlowMockNestMappingsBucket",
             S3BucketConfig.builder()
-                .bucket("demo-mocknest-mappings-$bucketSuffix")
+                .bucket("docs-flow-mocknest-mappings-$bucketSuffix")
                 .build()
         )
 
         val lambdaRole = IamRole(
             this,
-            "Demo-Spring-Clean-Architecture-Fun-Role",
+            "DocsFlow-Spring-Clean-Architecture-Fun-Role",
             IamRoleConfig.builder()
-                .name("Demo-Spring-Clean-Architecture-Fun-Role")
+                .name("DocsFlow-Spring-Clean-Architecture-Fun-Role")
                 .assumeRolePolicy(
                     """{
                     "Version": "2012-10-17",
@@ -111,9 +123,9 @@ class AwsStack(
 
         val policy = IamPolicy(
             this,
-            "Demo-Spring-Clean-Architecture-Fun-Policy",
+            "DocsFlow-Spring-Clean-Architecture-Fun-Policy",
             IamPolicyConfig.builder()
-                .name("Demo-Spring-Clean-Architecture-Fun-Policy")
+                .name("DocsFlow-Spring-Clean-Architecture-Fun-Policy")
                 .dependsOn(listOf(s3Bucket))
                 .policy(
                     """
@@ -151,9 +163,9 @@ class AwsStack(
 
         IamRolePolicy(
             this,
-            "Demo-Spring-Clean-Architecture-Fun-RolePolicy",
+            "DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy",
             IamRolePolicyConfig.builder()
-                .name("Demo-Spring-Clean-Architecture-Fun-RolePolicy")
+                .name("DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy")
                 .policy(policy.policy)
                 .role(lambdaRole.name).build()
         )
@@ -161,15 +173,15 @@ class AwsStack(
 
         val lambdaFunction = LambdaFunction(
             this,
-            "Demo-Spring-Clean-Architecture-Fun",
+            "DocsFlow-Spring-Clean-Architecture-Fun",
             LambdaFunctionConfig.builder()
-                .functionName("Demo-Spring-Clean-Architecture-Fun")
+                .functionName("DocsFlow-Spring-Clean-Architecture-Fun")
                 .handler("org.springframework.cloud.function.adapter.aws.FunctionInvoker")
-                .runtime("java17")
+                .runtime("java21")
                 .s3Bucket("lambda-deployment-clean-architecture-example")
-                .s3Key("demo-aws-function.jar")
+                .s3Key("docs-flow-aws-function.jar")
                 .sourceCodeHash(
-                    Fn.filebase64sha256("../../../../../build/dist/demo-aws-function.jar")
+                    Fn.filebase64sha256("../../../../../build/dist/docs-flow-aws-function.jar")
                 )
                 .role(lambdaRole.arn)
                 .dependsOn(
@@ -179,7 +191,7 @@ class AwsStack(
                     )
                 )
                 .memorySize(1024)
-                .snapStart { "PublishedVersions" }
+                //.snapStart { "PublishedVersions" }
                 .environment(
                     LambdaFunctionEnvironment.builder()
                         .variables(
@@ -199,9 +211,9 @@ class AwsStack(
         // Create API Gateway REST API (API Gateway v1)
         val api = ApiGatewayRestApi(
             this,
-            "Demo-Spring-Clean-Architecture-API",
+            "DocsFlow-Spring-Clean-Architecture-API",
             ApiGatewayRestApiConfig.builder()
-                .name("Demo-Spring-Clean-Architecture-API")
+                .name("DocsFlow-Spring-Clean-Architecture-API")
                 .description("API for Spring Clean Architecture Example")
                 // Using REGIONAL endpoint type
                 .build()
@@ -210,7 +222,7 @@ class AwsStack(
         // Create API Gateway Resource
         val resource = ApiGatewayResource(
             this,
-            "Demo-Spring-Clean-Architecture-Resource",
+            "DocsFlow-Spring-Clean-Architecture-Resource",
             ApiGatewayResourceConfig.builder()
                 .restApiId(api.id)
                 .parentId(api.rootResourceId)
@@ -221,7 +233,7 @@ class AwsStack(
         // Create API Gateway Method
         val method = ApiGatewayMethod(
             this,
-            "Demo-Spring-Clean-Architecture-Method",
+            "DocsFlow-Spring-Clean-Architecture-Method",
             ApiGatewayMethodConfig.builder()
                 .restApiId(api.id)
                 .resourceId(resource.id)
@@ -234,21 +246,21 @@ class AwsStack(
         // Create Lambda integration for API Gateway
         val integration = ApiGatewayIntegration(
             this,
-            "Demo-Spring-Clean-Architecture-Integration",
+            "DocsFlow-Spring-Clean-Architecture-Integration",
             ApiGatewayIntegrationConfig.builder()
                 .restApiId(api.id)
                 .resourceId(resource.id)
                 .httpMethod(method.httpMethod)
                 .integrationHttpMethod("POST")
                 .type("AWS_PROXY")
-                .uri("arn:aws:apigateway:${System.getenv("DEPLOY_TARGET_REGION")}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
+                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
                 .build()
         )
 
         // Create API Gateway Deployment
         val deployment = ApiGatewayDeployment(
             this,
-            "Demo-Spring-Clean-Architecture-Deployment",
+            "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
                 .dependsOn(listOf(integration))
@@ -258,7 +270,7 @@ class AwsStack(
         // Create API Gateway Stage
         val stage = ApiGatewayStage(
             this,
-            "Demo-Spring-Clean-Architecture-Stage",
+            "DocsFlow-Spring-Clean-Architecture-Stage",
             ApiGatewayStageConfig.builder()
                 .restApiId(api.id)
                 .deploymentId(deployment.id)
@@ -269,9 +281,9 @@ class AwsStack(
         // Create API Key
         val apiKey = ApiGatewayApiKey(
             this,
-            "Demo-Spring-Clean-Architecture-ApiKey",
+            "DocsFlow-Spring-Clean-Architecture-ApiKey",
             ApiGatewayApiKeyConfig.builder()
-                .name("Demo-Spring-Clean-Architecture-ApiKey")
+                .name("DocsFlow-Spring-Clean-Architecture-ApiKey")
                 .description("API Key for Spring Clean Architecture Example")
                 .enabled(true)
                 .build()
@@ -280,9 +292,9 @@ class AwsStack(
         // Create Usage Plan and associate it with the "prod" stage
         val usagePlan = ApiGatewayUsagePlan(
             this,
-            "Demo-Spring-Clean-Architecture-UsagePlan",
+            "DocsFlow-Spring-Clean-Architecture-UsagePlan",
             ApiGatewayUsagePlanConfig.builder()
-                .name("Demo-Spring-Clean-Architecture-UsagePlan")
+                .name("DocsFlow-Spring-Clean-Architecture-UsagePlan")
                 .description("Usage Plan for Spring Clean Architecture Example")
                 .apiStages(
                     listOf(
@@ -299,7 +311,7 @@ class AwsStack(
         // Link API Key to Usage Plan
         ApiGatewayUsagePlanKey(
             this,
-            "Demo-Spring-Clean-Architecture-UsagePlanKey",
+            "DocsFlow-Spring-Clean-Architecture-UsagePlanKey",
             ApiGatewayUsagePlanKeyConfig.builder()
                 .keyId(apiKey.id)
                 .keyType("API_KEY")
@@ -310,12 +322,12 @@ class AwsStack(
         // Grant API Gateway permission to invoke Lambda
         LambdaPermission(
             this,
-            "Demo-Spring-Clean-Architecture-Permission",
+            "DocsFlow-Spring-Clean-Architecture-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(lambdaFunction.functionName)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:${System.getenv("DEPLOY_TARGET_REGION")}:${System.getenv("DEPLOY_TARGET_ACCOUNT")}:${api.id}/*/${method.httpMethod}/${resource.pathPart}")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${method.httpMethod}/${resource.pathPart}")
                 .build()
         )
     }

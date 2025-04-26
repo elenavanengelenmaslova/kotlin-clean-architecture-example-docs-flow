@@ -56,7 +56,7 @@ publishing {
 tasks {
     val thinJar by existing(Jar::class)
     val shadowJar by getting(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {
-        archiveFileName.set("demo-aws-function.jar")
+        archiveFileName.set("docs-flow-aws-function.jar")
         destinationDirectory.set(file("${project.rootDir}/build/dist"))
         manifest {
             thinJar.get().manifest.attributes.forEach { key, value ->
