@@ -108,7 +108,7 @@ class AzureStack(scope: Construct, id: String) :
             AzurermBackendConfig.builder()
                 .resourceGroupName("\${resource_group_name}")
                 .storageAccountName("\${storage_account_name}")
-                .containerName("vintikterraformstorage")
+                .containerName("cleanarchterraformstorage")
                 .key("docs-flow-kscfunction/terraform.tfstate")
                 .clientId("\${client_id}")
                 .clientSecret("\${client_secret}")

@@ -163,7 +163,7 @@
       "azurerm": {
         "client_id": "${client_id}",
         "client_secret": "${client_secret}",
-        "container_name": "vintikterraformstorage",
+        "container_name": "cleanarchterraformstorage",
         "key": "docs-flow-kscfunction/terraform.tfstate",
         "resource_group_name": "${resource_group_name}",
         "storage_account_name": "${storage_account_name}",
