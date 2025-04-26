@@ -173,7 +173,8 @@ class AzureStack(scope: Construct, id: String) :
                 .location(resourceGroup.location)
                 .resourceGroupName(resourceGroup.name)
                 .sku("PerGB2018")
-                .retentionInDays(7)
+                .retentionInDays(30)
+                .retentionInDays(30)
                 .build()
         )
 
