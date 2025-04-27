@@ -24,12 +24,12 @@ class DocsFlowFunctionsIntegrationTest {
     private lateinit var docsFlowFunctions: DocsFlowFunctions
     private val context = mockk<ExecutionContext>(relaxed = true)
     val request =
-        mockk<HttpRequestMessage<String>>(relaxed = true)
+        mockk<HttpRequestMessage<ByteArray>>(relaxed = true)
 
     @Test
     fun `When valid request then 201 response from DocsFlow`() {
         every { request.httpMethod } returns HttpMethod.POST
-        every { request.body } returns "test"
+        every { request.body } returns "test".toByteArray()
         docsFlowFunctions.uploadDocument(
             request,
             context
