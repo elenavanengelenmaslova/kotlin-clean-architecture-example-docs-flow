@@ -297,6 +297,17 @@ class AwsStack(
                 .build()
         )
 
+        // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
+        val lambdaPermissionAPI =  LambdaPermission(
+            this,
+            "DocsFlow-Permission",
+            LambdaPermissionConfig.builder()
+                .functionName(lambdaFunction.functionName)
+                .action("lambda:InvokeFunction")
+                .principal("apigateway.amazonaws.com")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/POST/docs-flow")
+                .build()
+        )
 
         // Create API Gateway Deployment
         val deployment = ApiGatewayDeployment(
@@ -304,7 +315,7 @@ class AwsStack(
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
-                .dependsOn(listOf(docsFlowIntegration))
+                .dependsOn(listOf(docsFlowIntegration, lambdaPermissionAPI))
                 .build()
         )
 
@@ -360,17 +371,6 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
-        val lambdaPermissionAPI =  LambdaPermission(
-            this,
-            "DocsFlow-Permission",
-            LambdaPermissionConfig.builder()
-                .functionName(lambdaFunction.functionName)
-                .action("lambda:InvokeFunction")
-                .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/POST/docs-flow")
-                .build()
-        )
 
         // Grant S3 permission to invoke the document processor Lambda
         val s3LambdaPermission = LambdaPermission(
@@ -390,7 +390,7 @@ class AwsStack(
             "DocsFlow-S3-Notification",
             S3BucketNotificationConfig.builder()
                 .bucket(s3Bucket.id)
-                .dependsOn(listOf(lambdaPermissionAPI, s3LambdaPermission))
+                .dependsOn(listOf(s3LambdaPermission))
                 .lambdaFunction(
                     listOf(
                         S3BucketNotificationLambdaFunction.builder()
