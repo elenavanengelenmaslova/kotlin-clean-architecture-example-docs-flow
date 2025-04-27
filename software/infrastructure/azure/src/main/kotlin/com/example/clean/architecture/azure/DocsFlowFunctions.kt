@@ -5,6 +5,7 @@ import com.example.clean.architecture.model.HttpResponse
 import com.example.clean.architecture.service.HandleDocsFlowRequest
 import com.microsoft.azure.functions.*
 import com.microsoft.azure.functions.annotation.AuthorizationLevel
+import com.microsoft.azure.functions.annotation.BlobTrigger
 import com.microsoft.azure.functions.annotation.FunctionName
 import com.microsoft.azure.functions.annotation.HttpTrigger
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -58,6 +59,21 @@ class DocsFlowFunctions(
             }
             .body(response.body)
             .build()
+    }
+
+    @FunctionName("ProcessDocument")
+    fun processDocument(
+        @BlobTrigger(
+            name = "content",
+            path = "docs-flow/{name}",
+            connection = "AzureWebJobsStorage"
+        ) content: ByteArray,
+        name: String,
+        context: ExecutionContext
+    ) {
+        logger.info { "Blob trigger function processed blob: $name" }
+        logger.info { "Processing document from blob storage" }
+        logger.info { "Document name: $name, size: ${content.size}" }
     }
 
 }

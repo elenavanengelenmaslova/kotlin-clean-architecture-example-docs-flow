@@ -189,16 +189,7 @@ class AzureStack(scope: Construct, id: String) :
                 .workspaceId(logAnalyticsWorkspace.id)
                 .build()
         )
-        val storageAccountAccessKeyVar = TerraformVariable(
-            this,
-            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Storage account access key")
-                .build()
-        )
-
-        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
+        // Storage account access key no longer needed with Managed Identity
 
         // Create the Function App
         val functionApp = LinuxFunctionApp(
@@ -216,9 +207,7 @@ class AzureStack(scope: Construct, id: String) :
                 .location(resourceGroup.location)
                 .servicePlanId(servicePlan.id)
                 .storageAccountName(azureStorageAccountNameVar.stringValue)
-                .storageAccountAccessKey(
-                    storageAccountAccessKey
-                )
+                // No need for storage account access key when using Managed Identity
                 .siteConfig(
                     LinuxFunctionAppSiteConfig.builder()
                         .applicationStack(
@@ -237,6 +226,10 @@ class AzureStack(scope: Construct, id: String) :
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         "APPINSIGHTS_INSTRUMENTATIONKEY" to appInsights.instrumentationKey,
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
+                        // Configure storage settings to use Managed Identity
+                        "AzureWebJobsStorage__accountName" to "docsflow",
+                        "AzureWebJobsStorage__credential" to "managedidentity",
+//                        "AzureWebJobsStorage__clientId" to "", // Empty for system-assigned identity
                     )
                 )
                 .build()
@@ -259,6 +252,17 @@ class AzureStack(scope: Construct, id: String) :
                 .scope(storageAccountDocsFlow.id) // ✅ Give access to full Storage Account management
                 .roleDefinitionName("Storage Account Contributor") // ✅ Allows creating/deleting tables
                 .principalId(functionApp.identity.principalId) // ✅ Assign to Function App's Managed Identity
+                .build()
+        )
+
+        // Add Queue Data Contributor role for the Function App to access queues
+        val functionAppQueueContributorRole = RoleAssignment(
+            this,
+            "DocsFlowFunctionAppQueueContributorRole",
+            RoleAssignmentConfig.builder()
+                .scope(storageAccountDocsFlow.id) // Assign access at the Storage Account level
+                .roleDefinitionName("Storage Queue Data Contributor") // Allows reading, writing, and processing queue messages
+                .principalId(functionApp.identity.principalId) // Assign to Function App's Managed Identity
                 .build()
         )
 
