@@ -283,32 +283,6 @@ class AwsStack(
                 .build()
         )
 
-        // Create Lambda integration for docs-flow endpoint
-        val docsFlowIntegration = ApiGatewayIntegration(
-            this,
-            "DocsFlow-Integration",
-            ApiGatewayIntegrationConfig.builder()
-                .restApiId(api.id)
-                .resourceId(docsFlowResource.id)
-                .httpMethod(docsFlowMethod.httpMethod)
-                .integrationHttpMethod("POST")
-                .type("AWS_PROXY")
-                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
-                .build()
-        )
-
-//        // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
-//        val lambdaPermissionAPI =  LambdaPermission(
-//            this,
-//            "DocsFlow-Permission",
-//            LambdaPermissionConfig.builder()
-//                .functionName(lambdaFunction.functionName)
-//                .action("lambda:InvokeFunction")
-//                .principal("apigateway.amazonaws.com")
-//                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/POST/docs-flow")
-//                .build()
-//        )
-
         // Grant API Gateway permission to invoke Lambda for proxy endpoints
         val lambdaPermissionAPI = LambdaPermission(
             this,
@@ -321,13 +295,29 @@ class AwsStack(
                 .build()
         )
 
+
+        // Create Lambda integration for docs-flow endpoint
+        val docsFlowIntegration = ApiGatewayIntegration(
+            this,
+            "DocsFlow-Integration",
+            ApiGatewayIntegrationConfig.builder()
+                .restApiId(api.id)
+                .dependsOn(listOf(lambdaPermissionAPI))
+                .resourceId(docsFlowResource.id)
+                .httpMethod(docsFlowMethod.httpMethod)
+                .integrationHttpMethod("POST")
+                .type("AWS_PROXY")
+                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
+                .build()
+        )
+
         // Create API Gateway Deployment
         val deployment = ApiGatewayDeployment(
             this,
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
-                .dependsOn(listOf(docsFlowIntegration, lambdaPermissionAPI))
+                .dependsOn(listOf(docsFlowIntegration))
                 .build()
         )
 
