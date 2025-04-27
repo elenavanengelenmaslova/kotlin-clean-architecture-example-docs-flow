@@ -276,7 +276,7 @@
         "action": "lambda:InvokeFunction",
         "function_name": "${aws_lambda_function.DocsFlow-Spring-Clean-Architecture-Fun.function_name}",
         "principal": "apigateway.amazonaws.com",
-        "source_arn": "arn:aws:execute-api:${var.DEPLOY_TARGET_REGION}:${var.DEPLOY_TARGET_ACCOUNT}:${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}/*/${aws_api_gateway_method.DocsFlow-Method.http_method}/${aws_api_gateway_resource.DocsFlow-Resource.path_part}"
+        "source_arn": "arn:aws:execute-api:${var.DEPLOY_TARGET_REGION}:${var.DEPLOY_TARGET_ACCOUNT}:${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}/*/*/*"
       }
     },
     "aws_s3_bucket": {

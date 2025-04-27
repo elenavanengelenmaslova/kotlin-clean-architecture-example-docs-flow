@@ -291,7 +291,7 @@ class AwsStack(
                 .functionName(lambdaFunction.functionName)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${docsFlowMethod.httpMethod}/${docsFlowResource.pathPart}")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
                 .build()
         )
 
