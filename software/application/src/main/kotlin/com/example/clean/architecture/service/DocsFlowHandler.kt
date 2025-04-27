@@ -34,7 +34,7 @@ class DocsFlowHandler(
 
         return runCatching {
             // Generate a unique ID for the document
-            val documentId = UUID.randomUUID().toString()
+            val documentId = "${UUID.randomUUID()}.docx"
 
             // Save the document to storage
             val documentUrl = objectStorage.save(documentId, body)
