@@ -35,6 +35,9 @@ import com.hashicorp.cdktf.providers.aws.provider.AwsProvider
 import com.hashicorp.cdktf.providers.aws.provider.AwsProviderConfig
 import com.hashicorp.cdktf.providers.aws.s3_bucket.S3Bucket
 import com.hashicorp.cdktf.providers.aws.s3_bucket.S3BucketConfig
+import com.hashicorp.cdktf.providers.aws.s3_bucket_notification.S3BucketNotification
+import com.hashicorp.cdktf.providers.aws.s3_bucket_notification.S3BucketNotificationConfig
+import com.hashicorp.cdktf.providers.aws.s3_bucket_notification.S3BucketNotificationLambdaFunction
 import com.hashicorp.cdktf.providers.random_provider.provider.RandomProvider
 import com.hashicorp.cdktf.providers.random_provider.string_resource.StringResource
 import software.constructs.Construct
@@ -208,6 +211,42 @@ class AwsStack(
                 .build()
         )
 
+        // Create Lambda function for processing documents when uploaded to S3
+        val documentProcessorLambda = LambdaFunction(
+            this,
+            "DocsFlow-Document-Processor",
+            LambdaFunctionConfig.builder()
+                .functionName("DocsFlow-Document-Processor")
+                .handler("org.springframework.cloud.function.adapter.aws.FunctionInvoker")
+                .runtime("java21")
+                .s3Bucket("lambda-deployment-clean-architecture-example")
+                .s3Key("docs-flow-aws-function.jar")
+                .sourceCodeHash(
+                    Fn.filebase64sha256("../../../../../build/dist/docs-flow-aws-function.jar")
+                )
+                .role(lambdaRole.arn)
+                .dependsOn(
+                    listOf(
+                        s3Bucket,
+                        lambdaRole
+                    )
+                )
+                .memorySize(1024)
+                .environment(
+                    LambdaFunctionEnvironment.builder()
+                        .variables(
+                            mapOf(
+                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "processDocument",
+                                "MAIN_CLASS" to "com.example.clean.architecture.Application",
+                                "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
+                                "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+                            )
+                        ).build()
+                )
+                .timeout(120)
+                .build()
+        )
+
         // Create API Gateway REST API (API Gateway v1)
         val api = ApiGatewayRestApi(
             this,
@@ -322,7 +361,7 @@ class AwsStack(
         )
 
         // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
-        LambdaPermission(
+        val lambdaPermissionAPI =  LambdaPermission(
             this,
             "DocsFlow-Permission",
             LambdaPermissionConfig.builder()
@@ -333,15 +372,33 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda for proxy endpoints
-        LambdaPermission(
+        // Grant S3 permission to invoke the document processor Lambda
+        val s3LambdaPermission = LambdaPermission(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Permission",
+            "DocsFlow-S3-Permission",
             LambdaPermissionConfig.builder()
-                .functionName(lambdaFunction.functionName)
+                .functionName(documentProcessorLambda.functionName)
                 .action("lambda:InvokeFunction")
-                .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${docsFlowMethod.httpMethod}/${docsFlowResource.pathPart}")
+                .principal("s3.amazonaws.com")
+                .sourceArn(s3Bucket.arn)
+                .build()
+        )
+
+        // Configure S3 bucket to trigger Lambda when objects are created
+        val s3BucketNotification = S3BucketNotification(
+            this,
+            "DocsFlow-S3-Notification",
+            S3BucketNotificationConfig.builder()
+                .bucket(s3Bucket.id)
+                .dependsOn(listOf(lambdaPermissionAPI, s3LambdaPermission))
+                .lambdaFunction(
+                    listOf(
+                        S3BucketNotificationLambdaFunction.builder()
+                            .events(listOf("s3:ObjectCreated:*"))
+                            .lambdaFunctionArn(documentProcessorLambda.arn)
+                            .build()
+                    )
+                )
                 .build()
         )
     }

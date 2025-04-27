@@ -2,6 +2,7 @@ package com.example.clean.architecture.aws.function
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
+import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.service.HandleDocsFlowRequest
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -30,6 +31,19 @@ class DocsFlowFunctions(
                     .withHeaders(it.headers?.toSingleValueMap())
                     .withBody(it.body?.toString().orEmpty())
             }
+        }
+    }
+
+    @Bean
+    fun processDocument(): Function<S3Event, String> {
+        return Function { event ->
+            logger.info { "S3 Event received: Processing document" }
+            event.records.forEach { record ->
+                val bucket = record.s3.bucket.name
+                val key = record.s3.`object`.key
+                logger.info { "Document uploaded to bucket: $bucket, key: $key" }
+            }
+            "Hello World - Document processing triggered by S3 upload"
         }
     }
 
