@@ -18,7 +18,7 @@ import kotlin.test.Test
 @SpringBootTest
 @ActiveProfiles("local")
 @Import(LocalTestConfiguration::class)
-class MockNestFunctionsIntegrationTest {
+class DocsFlowFunctionsIntegrationTest {
 
     @Autowired
     private lateinit var docsFlowFunctions: DocsFlowFunctions
@@ -27,7 +27,7 @@ class MockNestFunctionsIntegrationTest {
         mockk<HttpRequestMessage<String>>(relaxed = true)
 
     @Test
-    fun `When mapped SF request then maps SF response in MockNest`() {
+    fun `When valid request then 201 response from DocsFlow`() {
         every { request.httpMethod } returns HttpMethod.POST
         every { request.body } returns "test"
         docsFlowFunctions.uploadDocument(

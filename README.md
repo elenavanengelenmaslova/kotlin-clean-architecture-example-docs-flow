@@ -15,16 +15,6 @@
   }
   ```
 
-### __admin
-- **Endpoint**: `/__admin/{route}`
-- **Methods**: GET, POST, PUT, DELETE
-- **Description**: Admin API for managing MockNest mappings
-
-### mocknest
-- **Endpoint**: `/mocknest/{route}`
-- **Methods**: GET, POST, PUT, DELETE, PATCH
-- **Description**: Client API for MockNest service
-
 ## Use cases
 ```plantuml
 

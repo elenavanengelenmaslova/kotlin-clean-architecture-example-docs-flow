@@ -15,7 +15,7 @@ private val logger = KotlinLogging.logger {}
 
 
 @Configuration
-class MockNestFunctions(
+class DocsFlowFunctions(
     private val handleDocsFlowRequest: HandleDocsFlowRequest,
 ) {
     @Bean

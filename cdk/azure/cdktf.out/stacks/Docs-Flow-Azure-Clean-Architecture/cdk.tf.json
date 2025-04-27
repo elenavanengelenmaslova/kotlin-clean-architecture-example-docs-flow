@@ -110,7 +110,7 @@
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Blob Data Contributor",
-        "scope": "${azurerm_storage_account.docs-flow-mocknest-sa.id}"
+        "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       },
       "DocsFlowFunctionAppStorageContributorRole": {
         "//": {
@@ -121,7 +121,7 @@
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Account Contributor",
-        "scope": "${azurerm_storage_account.docs-flow-mocknest-sa.id}"
+        "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       }
     },
     "azurerm_service_plan": {
@@ -143,34 +143,34 @@
       }
     },
     "azurerm_storage_account": {
-      "docs-flow-mocknest-sa": {
+      "docs-flow-sa": {
         "//": {
           "metadata": {
-            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-mocknest-sa",
-            "uniqueId": "docs-flow-mocknest-sa"
+            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-sa",
+            "uniqueId": "docs-flow-sa"
           }
         },
         "account_replication_type": "LRS",
         "account_tier": "Standard",
         "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
-        "name": "docsflowmocknest",
+        "name": "docsflow",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
       }
     },
     "azurerm_storage_container": {
-      "docs-flow-mocknest-container": {
+      "docs-flow-container": {
         "//": {
           "metadata": {
-            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-mocknest-container",
-            "uniqueId": "docs-flow-mocknest-container"
+            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-container",
+            "uniqueId": "docs-flow-container"
           }
         },
         "container_access_type": "private",
         "depends_on": [
-          "azurerm_storage_account.docs-flow-mocknest-sa"
+          "azurerm_storage_account.docs-flow-sa"
         ],
-        "name": "docs-flow-mocknest-mappings",
-        "storage_account_id": "${azurerm_storage_account.docs-flow-mocknest-sa.id}"
+        "name": "docs-flow-mappings",
+        "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
       }
     }
   },
