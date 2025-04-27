@@ -7,7 +7,11 @@ import com.microsoft.azure.functions.*
 import com.microsoft.azure.functions.annotation.AuthorizationLevel
 import com.microsoft.azure.functions.annotation.FunctionName
 import com.microsoft.azure.functions.annotation.HttpTrigger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component
+import java.util.*
+
+private val logger = KotlinLogging.logger {}
 
 @Component
 class DocsFlowFunctions(
@@ -24,14 +28,16 @@ class DocsFlowFunctions(
         ) request: HttpRequestMessage<String>,
         context: ExecutionContext,
     ): HttpResponseMessage {
-        context.logger.info("Processing docs-flow request")
+        logger.info { "Processing docs-flow request" }
+        val bodyBytes = Base64.getDecoder().decode(request.body)
+
         val response = handleDocsFlowRequest(
             HttpRequest(
                 org.springframework.http.HttpMethod.valueOf(request.httpMethod.name),
                 request.headers,
                 "",
                 request.queryParameters,
-                request.body.toByteArray(Charsets.ISO_8859_1)
+                bodyBytes
             )
         )
         return buildResponse(request, response)
