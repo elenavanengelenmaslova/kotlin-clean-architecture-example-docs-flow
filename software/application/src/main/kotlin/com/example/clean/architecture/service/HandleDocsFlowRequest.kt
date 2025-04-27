@@ -9,12 +9,4 @@ import com.example.clean.architecture.model.HttpResponse
  * submitted via the docs-flow endpoint and storing them in the
  * appropriate storage.
  */
-fun interface HandleDocsFlowRequest {
-    /**
-     * Process a document flow request.
-     * 
-     * @param httpRequest The HTTP request containing the Word document
-     * @return An HTTP response indicating success or failure
-     */
-    operator fun invoke(httpRequest: HttpRequest): HttpResponse
-}
+fun interface HandleDocsFlowRequest: (HttpRequest) -> HttpResponse

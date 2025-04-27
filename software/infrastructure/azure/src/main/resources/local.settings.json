@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsStorage__accountName": "docsflow",
+    "AzureWebJobsStorage__credential": "managedidentity",
+    "FUNCTIONS_WORKER_RUNTIME": "java"
+  }
+}
