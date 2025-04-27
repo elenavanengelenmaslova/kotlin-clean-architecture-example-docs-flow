@@ -297,15 +297,27 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
-        val lambdaPermissionAPI =  LambdaPermission(
+//        // Grant API Gateway permission to invoke Lambda for docs-flow endpoint
+//        val lambdaPermissionAPI =  LambdaPermission(
+//            this,
+//            "DocsFlow-Permission",
+//            LambdaPermissionConfig.builder()
+//                .functionName(lambdaFunction.functionName)
+//                .action("lambda:InvokeFunction")
+//                .principal("apigateway.amazonaws.com")
+//                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/POST/docs-flow")
+//                .build()
+//        )
+
+        // Grant API Gateway permission to invoke Lambda for proxy endpoints
+        val lambdaPermissionAPI = LambdaPermission(
             this,
-            "DocsFlow-Permission",
+            "DocsFlow-Spring-Clean-Architecture-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(lambdaFunction.functionName)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/POST/docs-flow")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${docsFlowMethod.httpMethod}/${docsFlowResource.pathPart}")
                 .build()
         )
 
