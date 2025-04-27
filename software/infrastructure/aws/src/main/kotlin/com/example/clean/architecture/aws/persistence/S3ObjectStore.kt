@@ -22,7 +22,7 @@ class S3ObjectStore(
 ) : ObjectStorageInterface {
 
     override fun save(id: String, content: ByteArray): String = runBlocking {
-        logger.info { "Saving mapping with id: $id" }
+        logger.info { "Saving doc with id: $id" }
         runCatching {
             val byteStream = ByteStream.fromBytes(content)
             s3Client.putObject(
@@ -33,13 +33,13 @@ class S3ObjectStore(
                 }
             )
             "s3://$bucketName/$id"
-        }.onFailure { e -> logger.error(e) { "Failed to save mapping with id: $id" } }
+        }.onFailure { e -> logger.error(e) { "Failed to save doc with id: $id" } }
             .getOrThrow()
 
     }
 
     override fun get(id: String): ByteArray? = runBlocking {
-        logger.info { "Getting mapping with id: $id" }
+        logger.info { "Getting doc with id: $id" }
         runCatching {
             var content: ByteArray? = null
             s3Client.getObject(GetObjectRequest {
@@ -50,26 +50,26 @@ class S3ObjectStore(
             }
             content
         }.onFailure { e ->
-            logger.info { "Mapping with id: $id not found: ${e.message}" }
+            logger.info { "Doc with id: $id not found: ${e.message}" }
         }.getOrThrow()
     }
 
     override fun delete(id: String): Unit = runBlocking {
-        logger.info { "Deleting mapping with id: $id" }
+        logger.info { "Deleting doc with id: $id" }
         runCatching {
             s3Client.deleteObject(DeleteObjectRequest {
                 bucket = bucketName
                 key = id
             })
-        }.onFailure { e -> logger.info { "Error deleting mapping with id: $id: ${e.message}" } }
+        }.onFailure { e -> logger.info { "Error deleting doc with id: $id: ${e.message}" } }
             .getOrThrow()
     }
 
     override fun list(): List<String> = runBlocking {
-        logger.info { "Listing all mappings" }
+        logger.info { "Listing all docs" }
         runCatching {
             s3Client.listObjectsV2(ListObjectsV2Request { bucket = bucketName })
-        }.onFailure { e -> logger.error(e) { "Failed to list mappings" } }
+        }.onFailure { e -> logger.error(e) { "Failed to list docs" } }
             .getOrThrow().contents?.mapNotNull { it.key } ?: emptyList()
     }
 }

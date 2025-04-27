@@ -145,7 +145,7 @@ class AzureStack(scope: Construct, id: String) :
             this,
             "docs-flow-container",
             StorageContainerConfig.builder()
-                .name("docs-flow-mappings")  // Blob storage container name
+                .name("docs-flow")  // Blob storage container name
                 .storageAccountId(storageAccountDocsFlow.id)
                 .containerAccessType("private")  // Private access for security
                 .dependsOn(listOf(storageAccountDocsFlow))

@@ -159,10 +159,10 @@
           }
         },
         "depends_on": [
-          "aws_s3_bucket.DocsFlowMappingsBucket"
+          "aws_s3_bucket.DocsFlowBucket"
         ],
         "name": "DocsFlow-Spring-Clean-Architecture-Fun-Policy",
-        "policy": "{\n    \"Version\": \"2012-10-17\",\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"logs:CreateLogGroup\",\n                \"logs:CreateLogStream\",\n                \"logs:PutLogEvents\"\n            ],\n            \"Resource\": \"arn:aws:logs:*:*:*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:PutObject\",\n                \"s3:GetObject\",\n                \"s3:ListBucket\",\n                \"s3:DeleteObject\"\n            ],\n            \"Resource\": [\n                \"${aws_s3_bucket.DocsFlowMappingsBucket.arn}\",          \n                \"${aws_s3_bucket.DocsFlowMappingsBucket.arn}/*\"   \n            ]\n        }\n    ]\n}"
+        "policy": "{\n    \"Version\": \"2012-10-17\",\n    \"Statement\": [\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"logs:CreateLogGroup\",\n                \"logs:CreateLogStream\",\n                \"logs:PutLogEvents\"\n            ],\n            \"Resource\": \"arn:aws:logs:*:*:*\"\n        },\n        {\n            \"Effect\": \"Allow\",\n            \"Action\": [\n                \"s3:PutObject\",\n                \"s3:GetObject\",\n                \"s3:ListBucket\",\n                \"s3:DeleteObject\"\n            ],\n            \"Resource\": [\n                \"${aws_s3_bucket.DocsFlowBucket.arn}\",          \n                \"${aws_s3_bucket.DocsFlowBucket.arn}/*\"   \n            ]\n        }\n    ]\n}"
       }
     },
     "aws_iam_role": {
@@ -199,12 +199,12 @@
           }
         },
         "depends_on": [
-          "aws_s3_bucket.DocsFlowMappingsBucket",
+          "aws_s3_bucket.DocsFlowBucket",
           "aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role"
         ],
         "environment": {
           "variables": {
-            "AWS_S3_BUCKET_NAME": "${aws_s3_bucket.DocsFlowMappingsBucket.bucket}",
+            "AWS_S3_BUCKET_NAME": "${aws_s3_bucket.DocsFlowBucket.bucket}",
             "JAVA_TOOL_OPTIONS": "-XX:+TieredCompilation -XX:TieredStopAtLevel=1",
             "MAIN_CLASS": "com.example.clean.architecture.Application",
             "SPRING_CLOUD_FUNCTION_DEFINITION": "uploadDocument"
@@ -248,14 +248,14 @@
       }
     },
     "aws_s3_bucket": {
-      "DocsFlowMappingsBucket": {
+      "DocsFlowBucket": {
         "//": {
           "metadata": {
-            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlowMappingsBucket",
-            "uniqueId": "DocsFlowMappingsBucket"
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlowBucket",
+            "uniqueId": "DocsFlowBucket"
           }
         },
-        "bucket": "docs-flow-mappings-${random_string.bucketSuffix.result}"
+        "bucket": "docs-flow-${random_string.bucketSuffix.result}"
       }
     },
     "random_string": {

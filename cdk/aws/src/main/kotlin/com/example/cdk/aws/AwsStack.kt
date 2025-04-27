@@ -93,12 +93,12 @@ class AwsStack(
             .build()
             .result
 
-        // Define S3 bucket for DocsFlow mappings
+        // Define S3 bucket for DocsFlow
         val s3Bucket = S3Bucket(
             this,
-            "DocsFlowMappingsBucket",
+            "DocsFlowBucket",
             S3BucketConfig.builder()
-                .bucket("docs-flow-mappings-$bucketSuffix")
+                .bucket("docs-flow-$bucketSuffix")
                 .build()
         )
 

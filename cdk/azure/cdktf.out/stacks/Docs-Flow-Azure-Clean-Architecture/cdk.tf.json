@@ -169,7 +169,7 @@
         "depends_on": [
           "azurerm_storage_account.docs-flow-sa"
         ],
-        "name": "docs-flow-mappings",
+        "name": "docs-flow",
         "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
       }
     }
