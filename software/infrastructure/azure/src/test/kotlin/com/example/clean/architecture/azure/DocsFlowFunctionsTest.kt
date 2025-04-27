@@ -24,12 +24,12 @@ class MockNestFunctionsIntegrationTest {
     private lateinit var docsFlowFunctions: DocsFlowFunctions
     private val context = mockk<ExecutionContext>(relaxed = true)
     val request =
-        mockk<HttpRequestMessage<ByteArray>>(relaxed = true)
+        mockk<HttpRequestMessage<String>>(relaxed = true)
 
     @Test
     fun `When mapped SF request then maps SF response in MockNest`() {
         every { request.httpMethod } returns HttpMethod.POST
-        every { request.body } returns "test".toByteArray()
+        every { request.body } returns "test"
         docsFlowFunctions.uploadDocument(
             request,
             context

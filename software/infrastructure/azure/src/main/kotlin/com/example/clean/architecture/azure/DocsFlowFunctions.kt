@@ -21,7 +21,7 @@ class DocsFlowFunctions(
             methods = [HttpMethod.POST],
             authLevel = AuthorizationLevel.FUNCTION,
             route = "docs-flow"
-        ) request: HttpRequestMessage<ByteArray>,
+        ) request: HttpRequestMessage<String>,
         context: ExecutionContext,
     ): HttpResponseMessage {
         context.logger.info("Processing docs-flow request")
@@ -31,14 +31,14 @@ class DocsFlowFunctions(
                 request.headers,
                 "",
                 request.queryParameters,
-                request.body
+                request.body.toByteArray(Charsets.ISO_8859_1)
             )
         )
         return buildResponse(request, response)
     }
 
     private fun buildResponse(
-        request: HttpRequestMessage<ByteArray>,
+        request: HttpRequestMessage<String>,
         response: HttpResponse,
     ): HttpResponseMessage {
         return request
