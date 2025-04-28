@@ -189,7 +189,16 @@ class AzureStack(scope: Construct, id: String) :
                 .workspaceId(logAnalyticsWorkspace.id)
                 .build()
         )
-        // Storage account access key no longer needed with Managed Identity
+        val storageAccountAccessKeyVar = TerraformVariable(
+            this,
+            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("Storage account access key")
+                .build()
+        )
+
+        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
 
         // Create the Function App
         val functionApp = LinuxFunctionApp(
@@ -207,7 +216,9 @@ class AzureStack(scope: Construct, id: String) :
                 .location(resourceGroup.location)
                 .servicePlanId(servicePlan.id)
                 .storageAccountName(azureStorageAccountNameVar.stringValue)
-                // No need for storage account access key when using Managed Identity
+                .storageAccountAccessKey(
+                    storageAccountAccessKey
+                )
                 .siteConfig(
                     LinuxFunctionAppSiteConfig.builder()
                         .applicationStack(
