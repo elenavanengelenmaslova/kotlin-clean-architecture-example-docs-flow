@@ -237,10 +237,6 @@ class AzureStack(scope: Construct, id: String) :
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         "APPINSIGHTS_INSTRUMENTATIONKEY" to appInsights.instrumentationKey,
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
-                        // Configure storage settings to use Managed Identity
-                        "AzureWebJobsStorage__accountName" to "docsflow",
-                        "AzureWebJobsStorage__credential" to "managedidentity",
-//                        "AzureWebJobsStorage__clientId" to "", // Empty for system-assigned identity
                     )
                 )
                 .build()

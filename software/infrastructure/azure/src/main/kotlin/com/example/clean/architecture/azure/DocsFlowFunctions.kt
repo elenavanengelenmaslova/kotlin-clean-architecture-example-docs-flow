@@ -66,7 +66,7 @@ class DocsFlowFunctions(
         @BlobTrigger(
             name = "content",
             path = "docs-flow/{name}",
-            connection = "AzureWebJobsStorage"
+            connection = "TriggerBlobStorage"
         ) content: ByteArray,
         name: String,
         context: ExecutionContext

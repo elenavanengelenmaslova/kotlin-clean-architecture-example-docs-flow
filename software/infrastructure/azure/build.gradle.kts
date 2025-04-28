@@ -106,9 +106,8 @@ azurefunctions {
     region = "westeurope"
     appSettings = mapOf(
         "WEBSITE_RUN_FROM_PACKAGE" to "1",
-        "AzureWebJobsStorage" to "UseDevelopmentStorage=true",
-        "AzureWebJobsStorage__accountName" to "docsflow",
-        "AzureWebJobsStorage__credential" to "managedidentity"
+        "TriggerBlobStorage__accountName" to "docsflow",
+        "TriggerBlobStorage__credential" to "managedidentity"
     )
     localDebug = "transport=dt_socket,server=y,suspend=n,address=5005"
 }

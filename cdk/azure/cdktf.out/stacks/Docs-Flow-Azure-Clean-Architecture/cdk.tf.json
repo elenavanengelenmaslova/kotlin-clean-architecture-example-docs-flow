@@ -61,8 +61,6 @@
         },
         "app_settings": {
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
-          "AzureWebJobsStorage__accountName": "docsflow",
-          "AzureWebJobsStorage__credential": "managedidentity",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "WEBSITE_RUN_FROM_PACKAGE": "1"
         },
