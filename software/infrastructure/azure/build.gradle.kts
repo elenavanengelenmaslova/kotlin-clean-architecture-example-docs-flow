@@ -107,5 +107,4 @@ azurefunctions {
     appSettings = mapOf(
         "MAIN_CLASS" to "com.example.clean.architecture.Application",
     )
-    localDebug = "transport=dt_socket,server=y,suspend=n,address=5005"
 }
