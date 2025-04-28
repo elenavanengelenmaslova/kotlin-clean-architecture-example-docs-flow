@@ -77,6 +77,7 @@
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
         "service_plan_id": "${azurerm_service_plan.CleanArchitectureAppServicePlan.id}",
         "site_config": {
+          "always_on": false,
           "application_stack": {
             "java_version": "21"
           }
@@ -150,7 +151,7 @@
         "name": "clean_architecture_app_plan",
         "os_type": "Linux",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
-        "sku_name": "Y1"
+        "sku_name": "EP1"
       }
     },
     "azurerm_storage_account": {
