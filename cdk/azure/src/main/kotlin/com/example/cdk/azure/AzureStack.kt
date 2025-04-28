@@ -160,7 +160,7 @@ class AzureStack(scope: Construct, id: String) :
                 .name(appServicePlanName)
                 .resourceGroupName(resourceGroup.name)
                 .osType("Linux")
-                .skuName("EP1")
+                .skuName("Y1")
                 .location(resourceGroup.location)
                 .build()
         )
@@ -226,7 +226,6 @@ class AzureStack(scope: Construct, id: String) :
                                 .javaVersion("21")
                                 .build()
                         )
-                        .alwaysOn(false)
                         .build()
                 )
                 .identity(

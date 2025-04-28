@@ -30,7 +30,7 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   BUILD_NO: ${{ github.run_number }}
-  AZURE_RESOURCE_GROUP_NAME: "CleanArchitectureResourceGroup-WEU"
+  AZURE_RESOURCE_GROUP_NAME: "CleanArchitectureRG-WEU"
 
 jobs:
   deploy-infra:
