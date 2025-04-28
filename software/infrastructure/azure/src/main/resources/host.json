@@ -4,10 +4,5 @@
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[4.*, 5.2.0)"
   },
-  "functionTimeout": "00:03:00",
-  "extensions": {
-    "blobs": {
-      "maxDegreeOfParallelism": 4
-    }
-  }
+  "functionTimeout": "00:03:00"
 }
