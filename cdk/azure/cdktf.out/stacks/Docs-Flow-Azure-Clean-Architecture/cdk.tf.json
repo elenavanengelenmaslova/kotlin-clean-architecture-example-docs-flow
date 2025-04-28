@@ -61,7 +61,8 @@
         },
         "app_settings": {
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
-          "MAIN_CLASS": "com.example.clean.architecture.Application",
+          "TriggerBlobStorage__accountName": "docsflow",
+          "TriggerBlobStorage__credential": "managedidentity",
           "WEBSITE_RUN_FROM_PACKAGE": "1"
         },
         "depends_on": [

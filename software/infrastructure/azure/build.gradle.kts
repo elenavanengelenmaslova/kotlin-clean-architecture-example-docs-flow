@@ -105,9 +105,7 @@ azurefunctions {
     appName = "docs-flow-spring-clean-architecture-fun"
     region = "westeurope"
     appSettings = mapOf(
-        "WEBSITE_RUN_FROM_PACKAGE" to "1",
-        "TriggerBlobStorage__accountName" to "docsflow",
-        "TriggerBlobStorage__credential" to "managedidentity"
+        "MAIN_CLASS" to "com.example.clean.architecture.Application",
     )
     localDebug = "transport=dt_socket,server=y,suspend=n,address=5005"
 }
