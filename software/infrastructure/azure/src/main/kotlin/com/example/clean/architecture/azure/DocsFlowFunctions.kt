@@ -61,20 +61,20 @@ class DocsFlowFunctions(
             .build()
     }
 
-    @FunctionName("ProcessDocument")
-    fun processDocument(
-        @BlobTrigger(
-            name = "content",
-            path = "docs-flow/{name}",
-            connection = "TriggerBlobStorage"
-        ) content: ByteArray,
-        name: String,
-        context: ExecutionContext
-    ) {
-        logger.info { "Blob trigger function processed blob: $name" }
-        logger.info { "Processing document from blob storage" }
-        logger.info { "Document name: $name, size: ${content.size}" }
-        // Additional processing logic can be added here
-    }
+//    @FunctionName("ProcessDocument")
+//    fun processDocument(
+//        @BlobTrigger(
+//            name = "content",
+//            path = "docs-flow/{name}",
+//            connection = "TriggerBlobStorage"
+//        ) content: ByteArray,
+//        name: String,
+//        context: ExecutionContext
+//    ) {
+//        logger.info { "Blob trigger function processed blob: $name" }
+//        logger.info { "Processing document from blob storage" }
+//        logger.info { "Document name: $name, size: ${content.size}" }
+//        // Additional processing logic can be added here
+//    }
 
 }
