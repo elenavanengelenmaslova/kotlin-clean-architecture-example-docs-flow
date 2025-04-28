@@ -152,7 +152,7 @@
         "name": "clean_architecture_app_plan",
         "os_type": "Linux",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
-        "sku_name": "Y1"
+        "sku_name": "EP1"
       }
     },
     "azurerm_storage_account": {
