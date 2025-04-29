@@ -7,7 +7,7 @@ on:
       - 'docs/**'
       - 'cdk/aws/**'
       - 'software/infrastructure/aws/**'
-      - "./.github/workflows/**-aws.yml"
+      - ".github/workflows/**-aws.yml"
   workflow_dispatch:
 
 jobs:
