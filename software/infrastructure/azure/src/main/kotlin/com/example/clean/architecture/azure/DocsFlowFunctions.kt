@@ -5,6 +5,7 @@ import com.example.clean.architecture.model.HttpResponse
 import com.example.clean.architecture.service.HandleDocsFlowRequest
 import com.microsoft.azure.functions.*
 import com.microsoft.azure.functions.annotation.AuthorizationLevel
+import com.microsoft.azure.functions.annotation.BindingName
 import com.microsoft.azure.functions.annotation.BlobTrigger
 import com.microsoft.azure.functions.annotation.FunctionName
 import com.microsoft.azure.functions.annotation.HttpTrigger
@@ -68,7 +69,7 @@ class DocsFlowFunctions(
             path = "docs-flow/{name}",
             connection = "TriggerBlobStorage"
         ) content: ByteArray,
-        name: String,
+        @BindingName("name") name: String,
         context: ExecutionContext
     ) {
         logger.info { "Blob trigger function processed blob: $name" }
