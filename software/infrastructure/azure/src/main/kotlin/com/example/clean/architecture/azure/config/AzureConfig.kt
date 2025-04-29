@@ -1,5 +1,7 @@
-package com.example.clean.architecture.azure.persistence.config
+package com.example.clean.architecture.azure.config
 
+import com.azure.communication.email.EmailClient
+import com.azure.communication.email.EmailClientBuilder
 import com.azure.identity.DefaultAzureCredentialBuilder
 import com.azure.storage.blob.BlobContainerClient
 import com.azure.storage.blob.BlobServiceClientBuilder
@@ -13,9 +15,10 @@ private val logger = KotlinLogging.logger {}
 
 @Configuration
 @Profile("!local")
-class BlobStorageConfig(
+class AzureConfig(
     @Value("\${azure.storage.endpoint}") private val endpoint: String,
     @Value("\${azure.storage.container-name}") private val containerName: String,
+    @Value("\${azure.acs.endpoint}") private val acsEndpoint: String,
 ) {
 
     @Bean
@@ -27,5 +30,14 @@ class BlobStorageConfig(
             .credential(credential)
             .buildClient()
             .getBlobContainerClient(containerName)
+    }
+    @Bean
+    fun emailClient(): EmailClient {
+        logger.info { "Initializing Azure Communication Services Email Client using managed identity" }
+        val credential = DefaultAzureCredentialBuilder().build()
+        return EmailClientBuilder()
+            .endpoint(acsEndpoint)
+            .credential(credential)
+            .buildClient()
     }
 }

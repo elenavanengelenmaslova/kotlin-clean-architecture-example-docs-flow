@@ -3,6 +3,7 @@ package com.example.clean.architecture.azure
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.model.HttpResponse
 import com.example.clean.architecture.service.HandleDocsFlowRequest
+import com.example.clean.architecture.service.ReviewAndNotifyDocument
 import com.microsoft.azure.functions.*
 import com.microsoft.azure.functions.annotation.AuthorizationLevel
 import com.microsoft.azure.functions.annotation.BindingName
@@ -17,6 +18,7 @@ private val logger = KotlinLogging.logger {}
 @Component
 class DocsFlowFunctions(
     private val handleDocsFlowRequest: HandleDocsFlowRequest,
+    private val reviewAndNotifyDocument: ReviewAndNotifyDocument,
 ) {
 
     @FunctionName("UploadDocument")
@@ -72,10 +74,9 @@ class DocsFlowFunctions(
         @BindingName("name") name: String,
         context: ExecutionContext
     ) {
-        logger.info { "Blob trigger function processed blob: $name" }
-        logger.info { "Processing document from blob storage" }
         logger.info { "Document name: $name, size: ${content.size}" }
-        // Additional processing logic can be added here
+        val result = reviewAndNotifyDocument(name)
+        logger.info { "Processed document from blob storage: ${result.getOrNull()}" }
     }
 
 }

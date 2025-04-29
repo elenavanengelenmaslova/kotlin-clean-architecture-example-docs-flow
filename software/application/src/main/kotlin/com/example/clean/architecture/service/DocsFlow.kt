@@ -15,4 +15,4 @@ fun interface HandleDocsFlowRequest: (HttpRequest) -> HttpResponse
  * Interface for processing a stored document.
  * Accepts a document name and returns the processing result.
  */
-fun interface ProcessDocument : (String) -> Result<String>
+fun interface ReviewAndNotifyDocument : (String) -> Result<String>

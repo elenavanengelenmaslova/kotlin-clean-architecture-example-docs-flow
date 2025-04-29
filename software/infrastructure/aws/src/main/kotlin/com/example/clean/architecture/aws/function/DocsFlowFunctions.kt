@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.service.HandleDocsFlowRequest
+import com.example.clean.architecture.service.ReviewAndNotifyDocument
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -18,6 +19,7 @@ private val logger = KotlinLogging.logger {}
 @Configuration
 class DocsFlowFunctions(
     private val handleDocsFlowRequest: HandleDocsFlowRequest,
+    private val autoReviewAndNotifyDocument: ReviewAndNotifyDocument
 ) {
     @Bean
     fun uploadDocument(): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
@@ -38,12 +40,12 @@ class DocsFlowFunctions(
     fun processDocument(): Function<S3Event, String> {
         return Function { event ->
             logger.info { "S3 Event received: Processing document" }
-            event.records.forEach { record ->
+            event.records.map { record ->
                 val bucket = record.s3.bucket.name
                 val key = record.s3.`object`.key
                 logger.info { "Document uploaded to bucket: $bucket, key: $key" }
-            }
-            "Hello World - Document processing triggered by S3 upload"
+                autoReviewAndNotifyDocument(key).getOrThrow()
+            }.joinToString("\n") { it }
         }
     }
 
