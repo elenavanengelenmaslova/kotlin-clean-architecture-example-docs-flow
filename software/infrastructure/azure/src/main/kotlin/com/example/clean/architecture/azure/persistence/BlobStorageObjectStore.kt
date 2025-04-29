@@ -1,23 +1,26 @@
 package com.example.clean.architecture.azure.persistence
 
 import com.azure.storage.blob.BlobContainerClient
+import com.azure.storage.blob.sas.BlobSasPermission
+import com.azure.storage.blob.sas.BlobServiceSasSignatureValues
 import com.example.clean.architecture.persistence.ObjectStorageInterface
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
+import java.time.OffsetDateTime
 
 private val logger = KotlinLogging.logger {}
 
 @Repository
 @Primary
 class BlobStorageObjectStore(
-    private val containerClient: BlobContainerClient
+    private val containerClient: BlobContainerClient,
 ) : ObjectStorageInterface {
 
     override fun save(id: String, content: ByteArray): String {
         logger.info { "Saving doc with id: $id" }
         val blobClient = containerClient.getBlobClient(id)
-        blobClient.upload(content.inputStream() , true)
+        blobClient.upload(content.inputStream(), true)
         return blobClient.blobUrl
     }
 
@@ -48,4 +51,22 @@ class BlobStorageObjectStore(
             .map { it.name }
             .toList()
     }
+
+    override fun generateSecureAccessUri(id: String): String {
+        logger.info { "Generating secure access URI with SAS token for doc with id: $id" }
+        val blobClient = containerClient.getBlobClient(id)
+
+        val expiryTime = OffsetDateTime.now().plusHours(24)
+
+        val sasPermission = BlobSasPermission().setReadPermission(true)
+
+        val sasValues = BlobServiceSasSignatureValues(expiryTime, sasPermission)
+
+        val sasToken = blobClient.generateSas(sasValues)
+        val blobUrlWithSas = "${blobClient.blobUrl}?$sasToken"
+
+        logger.info { "Generated SAS URL: $blobUrlWithSas" }
+        return blobUrlWithSas
+    }
+
 }

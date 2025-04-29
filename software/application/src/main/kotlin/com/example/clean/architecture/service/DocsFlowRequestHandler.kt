@@ -15,7 +15,7 @@ private val logger = KotlinLogging.logger {}
  * Implementation of HandleDocsFlowRequest that saves Word documents to storage.
  */
 @Component
-class DocsFlowHandler(
+class DocsFlowRequestHandler(
     private val objectStorage: ObjectStorageInterface
 ) : HandleDocsFlowRequest {
 

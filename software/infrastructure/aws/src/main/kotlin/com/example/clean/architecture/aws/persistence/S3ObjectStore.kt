@@ -5,6 +5,7 @@ import aws.sdk.kotlin.services.s3.model.DeleteObjectRequest
 import aws.sdk.kotlin.services.s3.model.GetObjectRequest
 import aws.sdk.kotlin.services.s3.model.ListObjectsV2Request
 import aws.sdk.kotlin.services.s3.model.PutObjectRequest
+import aws.sdk.kotlin.services.s3.presigners.presignGetObject
 import aws.smithy.kotlin.runtime.content.ByteStream
 import aws.smithy.kotlin.runtime.content.toByteArray
 import com.example.clean.architecture.persistence.ObjectStorageInterface
@@ -12,6 +13,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Repository
+import java.net.URL
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.*
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import kotlin.time.Duration.Companion.hours
 
 private val logger = KotlinLogging.logger {}
 
@@ -71,5 +79,21 @@ class S3ObjectStore(
             s3Client.listObjectsV2(ListObjectsV2Request { bucket = bucketName })
         }.onFailure { e -> logger.error(e) { "Failed to list docs" } }
             .getOrThrow().contents?.mapNotNull { it.key } ?: emptyList()
+    }
+
+    override fun generateSecureAccessUri(id: String): String = runBlocking {
+        logger.info { "Generating presigned URL for doc with id: $id" }
+        runCatching {
+            val request = GetObjectRequest {
+                bucket = bucketName
+                key = id
+            }
+            val presigned = s3Client.presignGetObject(request, 24.hours)
+            val url = presigned.url.toString()
+            logger.info { "Generated presigned URL: $url" }
+            url
+        }.onFailure { e ->
+            logger.error(e) { "Failed to generate presigned URL for doc with id: $id" }
+        }.getOrThrow()
     }
 }
