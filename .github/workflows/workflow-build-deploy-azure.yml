@@ -123,10 +123,10 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Setup Azure Functions Core Tools
-        uses: Azure/setup-azure-functions-core-tools@v1
-        with:
-          version: 4
+      - name: Install Azure Functions Core Tools v4
+        run: |
+          npm install -g azure-functions-core-tools@4 --unsafe-perm true
+      
 
       - name: Deploy with gradle
         run: |
