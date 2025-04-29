@@ -105,7 +105,6 @@ azurefunctions {
     appName = "docs-flow-spring-clean-architecture-fun"
     region = "westeurope"
     appSettings = mapOf(
-        "MAIN_CLASS" to "com.example.clean.architecture.Application",
         "WEBSITE_RUN_FROM_PACKAGE" to "1"
     )
 }

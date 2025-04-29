@@ -236,6 +236,7 @@ class AzureStack(scope: Construct, id: String) :
                 .appSettings(
                     mapOf(
                         "APPINSIGHTS_INSTRUMENTATIONKEY" to appInsights.instrumentationKey,
+                        "MAIN_CLASS" to "com.example.clean.architecture.Application",
 //                        "TriggerBlobStorage__accountName" to "docsflow",
 //                        "TriggerBlobStorage__credential" to "managedidentity",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
@@ -264,16 +265,16 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        // Add Queue Data Contributor role for the Function App to access queues
-        val functionAppQueueContributorRole = RoleAssignment(
-            this,
-            "DocsFlowFunctionAppQueueContributorRole",
-            RoleAssignmentConfig.builder()
-                .scope(storageAccountDocsFlow.id) // Assign access at the Storage Account level
-                .roleDefinitionName("Storage Queue Data Contributor") // Allows reading, writing, and processing queue messages
-                .principalId(functionApp.identity.principalId) // Assign to Function App's Managed Identity
-                .build()
-        )
+//        // Add Queue Data Contributor role for the Function App to access queues
+//        val functionAppQueueContributorRole = RoleAssignment(
+//            this,
+//            "DocsFlowFunctionAppQueueContributorRole",
+//            RoleAssignmentConfig.builder()
+//                .scope(storageAccountDocsFlow.id) // Assign access at the Storage Account level
+//                .roleDefinitionName("Storage Queue Data Contributor") // Allows reading, writing, and processing queue messages
+//                .principalId(functionApp.identity.principalId) // Assign to Function App's Managed Identity
+//                .build()
+//        )
 
     }
 }
