@@ -27,34 +27,6 @@ class BlobStorageObjectStore(
         return blobClient.blobUrl
     }
 
-    override fun get(id: String): ByteArray? {
-        logger.info { "Getting doc with id: $id" }
-        val blobClient = containerClient.getBlobClient(id)
-        return if (blobClient.exists()) {
-            blobClient.downloadContent().toBytes()
-        } else {
-            logger.info { "Doc with id: $id not found" }
-            null
-        }
-    }
-
-    override fun delete(id: String) {
-        logger.info { "Deleting doc with id: $id" }
-        val blobClient = containerClient.getBlobClient(id)
-        if (blobClient.exists()) {
-            blobClient.delete()
-        } else {
-            logger.info { "Doc with id: $id not found, nothing to delete" }
-        }
-    }
-
-    override fun list(): List<String> {
-        logger.info { "Listing all docs" }
-        return containerClient.listBlobs()
-            .map { it.name }
-            .toList()
-    }
-
     override fun generateSecureAccessUri(id: String): String {
         logger.info { "Generating secure access URI with SAS token for doc with id: $id" }
 
@@ -77,7 +49,6 @@ class BlobStorageObjectStore(
 
         return blobUrlWithSas
     }
-
 
 
 }

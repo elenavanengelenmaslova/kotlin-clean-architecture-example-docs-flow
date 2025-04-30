@@ -26,6 +26,7 @@ class DocsFlowFunctions(
         return Function { event ->
             with(event) {
                 logger.info { "Request: $httpMethod $path $headers" }
+                //TODO: call handle flow
                 handleDocsFlowRequest(createHttpRequest())
             }.let {
                 APIGatewayProxyResponseEvent()
@@ -44,6 +45,7 @@ class DocsFlowFunctions(
                 val bucket = record.s3.bucket.name
                 val key = record.s3.`object`.key
                 logger.info { "Document uploaded to bucket: $bucket, key: $key" }
+                //TODO: auto review and notify document
                 autoReviewAndNotifyDocument(key).getOrThrow()
             }.joinToString("\n") { it }
         }

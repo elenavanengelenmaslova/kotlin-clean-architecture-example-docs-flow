@@ -28,21 +28,21 @@ class DocsFlowFunctions(
             methods = [HttpMethod.POST],
             authLevel = AuthorizationLevel.FUNCTION,
             route = "docs-flow"
-        ) request: HttpRequestMessage<ByteArray>,
+        ) originalRequest: HttpRequestMessage<ByteArray>,
         context: ExecutionContext,
     ): HttpResponseMessage {
         logger.info { "Processing docs-flow request" }
 
-        val response = handleDocsFlowRequest(
-            HttpRequest(
-                org.springframework.http.HttpMethod.valueOf(request.httpMethod.name),
-                request.headers,
-                "",
-                request.queryParameters,
-                request.body
-            )
+        val request = HttpRequest(
+            org.springframework.http.HttpMethod.valueOf(originalRequest.httpMethod.name),
+            originalRequest.headers,
+            "",
+            originalRequest.queryParameters,
+            originalRequest.body
         )
-        return buildResponse(request, response)
+        // TODO: handle docs-flow request
+        val response = handleDocsFlowRequest(request)
+        return buildResponse(originalRequest, response)
     }
 
     private fun buildResponse(
@@ -75,6 +75,7 @@ class DocsFlowFunctions(
         context: ExecutionContext
     ) {
         logger.info { "Document name: $name, size: ${content.size}" }
+        //TODO: review and notify document
         val result = reviewAndNotifyDocument(name)
         logger.info { "Processed document from blob storage: ${result.getOrNull()}" }
     }

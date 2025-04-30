@@ -7,7 +7,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatusCode
 import org.springframework.stereotype.Component
-import java.util.UUID
+import java.util.*
 
 private val logger = KotlinLogging.logger {}
 
@@ -16,7 +16,7 @@ private val logger = KotlinLogging.logger {}
  */
 @Component
 class DocsFlowRequestHandler(
-    private val objectStorage: ObjectStorageInterface
+    private val objectStorage: ObjectStorageInterface,
 ) : HandleDocsFlowRequest {
 
     override fun invoke(httpRequest: HttpRequest): HttpResponse {
@@ -37,6 +37,7 @@ class DocsFlowRequestHandler(
             val documentId = "${UUID.randomUUID()}.docx"
 
             // Save the document to storage
+            //TODO: save to object storage
             val documentUrl = objectStorage.save(documentId, body)
 
             logger.info { "Document saved successfully with ID: $documentId at URL: $documentUrl" }
@@ -44,7 +45,7 @@ class DocsFlowRequestHandler(
             // Return success response
             HttpResponse(
                 HttpStatusCode.valueOf(201),
-                HttpHeaders().apply { 
+                HttpHeaders().apply {
                     add("Content-Type", "application/json")
                     add("Location", documentUrl)
                 },
