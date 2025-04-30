@@ -2,7 +2,10 @@ package com.example.clean.architecture.service
 
 import com.example.clean.architecture.notification.DocumentNotificationInterface
 import com.example.clean.architecture.persistence.ObjectStorageInterface
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
+
+private val logger = KotlinLogging.logger {}
 
 @Service
 class AutoDocumentReviewer(
@@ -13,9 +16,11 @@ class AutoDocumentReviewer(
     override fun invoke(blobId: String): Result<String> = runCatching {
         val linkToDocument = objectStorage.generateSecureAccessUri(blobId)
         val review = "${someVeryComplexReviewBusinessLogic()}\n Download at: $linkToDocument"
+        logger.info { "Generated review: $review, sending email..." }
         documentNotification.sendEmail(review)
         review
-    }
+    }.onFailure { logger.error(it) { "Failed to generate and send a review: ${it.message}" } }
+
 
     private fun someVeryComplexReviewBusinessLogic(): String =
         chapterReviews.random()

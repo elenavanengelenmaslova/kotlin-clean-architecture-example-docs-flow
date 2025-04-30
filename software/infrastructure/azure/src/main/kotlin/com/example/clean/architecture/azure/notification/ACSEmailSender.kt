@@ -1,9 +1,6 @@
 package com.example.clean.architecture.azure.notification
 
 import com.azure.communication.email.EmailClient
-import com.azure.communication.email.implementation.models.EmailContent
-import com.azure.communication.email.implementation.models.EmailRecipients
-import com.azure.communication.email.models.EmailAddress
 import com.azure.communication.email.models.EmailMessage
 import com.example.clean.architecture.notification.DocumentNotificationInterface
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -21,7 +18,7 @@ class ACSEmailSender(
     @Value("\${azure.acs.recipient-email}") private val recipientEmail: String,
 ) : DocumentNotificationInterface {
 
-    override fun sendEmail(review: String): Unit {
+    override fun sendEmail(review: String) {
         logger.info { "Sending review email via Azure Communication Services..." }
         runCatching {
             val message = EmailMessage()
@@ -32,7 +29,7 @@ class ACSEmailSender(
             val result = emailClient.beginSend(message).finalResult
             result.error?.let { error("${result.error.code}: ${result.error.message}") }
         }.onFailure { e ->
-            logger.error(e) { "Failed to send email via Azure ACS" }
+            logger.error(e) { "Failed to send email via Azure ACS: ${e.message}" }
         }.getOrThrow()
     }
 }
