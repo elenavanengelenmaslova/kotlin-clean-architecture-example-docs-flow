@@ -73,7 +73,7 @@
           }
         },
         "app_settings": {
-          "ACS_ENDPOINT": "${azurerm_communication_service.DocsFlowACS.hostname}",
+          "ACS_ENDPOINT": "https://${azurerm_communication_service.DocsFlowACS.hostname}",
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "TriggerBlobStorage__accountName": "docsflow",

@@ -254,7 +254,7 @@ class AzureStack(scope: Construct, id: String) :
                         "TriggerBlobStorage__accountName" to "docsflow",
                         "TriggerBlobStorage__credential" to "managedidentity",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
-                        "ACS_ENDPOINT" to acsService.hostname,
+                        "ACS_ENDPOINT" to "https://${acsService.hostname}",
                     )
                 )
                 .build()
