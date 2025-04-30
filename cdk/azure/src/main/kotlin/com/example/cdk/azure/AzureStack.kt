@@ -226,13 +226,13 @@ class AzureStack(scope: Construct, id: String) :
                 .templateContent(
                     """
             {
-              "${"$"}schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "${'$'}schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
               "contentVersion": "1.0.0.0",
               "resources": [
                 {
                   "type": "Microsoft.Communication/communicationServices/emailServices",
                   "apiVersion": "2023-03-31",
-                  "name": "default",
+                  "name": "docsflow-acs/default",
                   "location": "global",
                   "properties": {}
                 }
@@ -242,7 +242,6 @@ class AzureStack(scope: Construct, id: String) :
                 )
                 .build()
         )
-
         // Create the Function App
         val functionApp = LinuxFunctionApp(
             this, "DocsFlowSpringCloudFunctionApp",
