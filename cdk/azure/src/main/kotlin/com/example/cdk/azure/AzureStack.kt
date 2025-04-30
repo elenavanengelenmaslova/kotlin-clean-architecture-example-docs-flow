@@ -3,6 +3,8 @@ package com.example.cdk.azure
 import com.hashicorp.cdktf.*
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsights
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsightsConfig
+import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationService
+import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationServiceConfig
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroup
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroupConfig
 import com.hashicorp.cdktf.providers.azurerm.linux_function_app.*
@@ -265,16 +267,34 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-//        // Add Queue Data Contributor role for the Function App to access queues
-//        val functionAppQueueContributorRole = RoleAssignment(
-//            this,
-//            "DocsFlowFunctionAppQueueContributorRole",
-//            RoleAssignmentConfig.builder()
-//                .scope(storageAccountDocsFlow.id) // Assign access at the Storage Account level
-//                .roleDefinitionName("Storage Queue Data Contributor") // Allows reading, writing, and processing queue messages
-//                .principalId(functionApp.identity.principalId) // Assign to Function App's Managed Identity
-//                .build()
-//        )
+        // Add Queue Data Contributor role for the Function App to access queues
+        RoleAssignment(
+            this,
+            "DocsFlowFunctionAppQueueContributorRole",
+            RoleAssignmentConfig.builder()
+                .scope(storageAccountDocsFlow.id) // Assign access at the Storage Account level
+                .roleDefinitionName("Storage Queue Data Contributor") // Allows reading, writing, and processing queue messages
+                .principalId(functionApp.identity.principalId) // Assign to Function App's Managed Identity
+                .build()
+        )
 
+        val acsService = DataAzurermCommunicationService(
+            this,
+            "CommunicationService",
+            DataAzurermCommunicationServiceConfig.builder()
+                .name("docsflow-acs")
+                .resourceGroupName(resourceGroup.name)
+                .build()
+        )
+
+        RoleAssignment(
+            this,
+            "DocsFlowFunctionAppACSEmailSenderRole",
+            RoleAssignmentConfig.builder()
+                .scope(acsService.id)
+                .roleDefinitionName("Azure Communication Services Email Sender")
+                .principalId(functionApp.identity.principalId)
+                .build()
+        )
     }
 }

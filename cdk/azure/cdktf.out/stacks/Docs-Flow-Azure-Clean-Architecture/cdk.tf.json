@@ -9,6 +9,18 @@
     }
   },
   "data": {
+    "azurerm_communication_service": {
+      "CommunicationService": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/CommunicationService",
+            "uniqueId": "CommunicationService"
+          }
+        },
+        "name": "docsflow-acs",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
+      }
+    },
     "azurerm_resource_group": {
       "ExistingResourceGroup": {
         "//": {
@@ -103,6 +115,17 @@
       }
     },
     "azurerm_role_assignment": {
+      "DocsFlowFunctionAppACSEmailSenderRole": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowFunctionAppACSEmailSenderRole",
+            "uniqueId": "DocsFlowFunctionAppACSEmailSenderRole"
+          }
+        },
+        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "role_definition_name": "Azure Communication Services Email Sender",
+        "scope": "${data.azurerm_communication_service.CommunicationService.id}"
+      },
       "DocsFlowFunctionAppBlobStorageRole": {
         "//": {
           "metadata": {
@@ -112,6 +135,17 @@
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Blob Data Contributor",
+        "scope": "${azurerm_storage_account.docs-flow-sa.id}"
+      },
+      "DocsFlowFunctionAppQueueContributorRole": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowFunctionAppQueueContributorRole",
+            "uniqueId": "DocsFlowFunctionAppQueueContributorRole"
+          }
+        },
+        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "role_definition_name": "Storage Queue Data Contributor",
         "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       },
       "DocsFlowFunctionAppStorageContributorRole": {

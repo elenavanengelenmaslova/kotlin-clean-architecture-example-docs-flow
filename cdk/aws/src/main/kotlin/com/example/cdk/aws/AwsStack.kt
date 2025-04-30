@@ -156,6 +156,14 @@ class AwsStack(
                 "${s3Bucket.arn}",          
                 "${s3Bucket.arn}/*"   
             ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                 "ses:SendEmail",
+                 "ses:SendRawEmail"
+            ],
+            "Resource": "*"
         }
     ]
 }
