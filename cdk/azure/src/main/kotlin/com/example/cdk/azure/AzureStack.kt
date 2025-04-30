@@ -321,7 +321,7 @@ class AzureStack(scope: Construct, id: String) :
             "DocsFlowFunctionAppACSEmailSenderRole",
             RoleAssignmentConfig.builder()
                 .scope(acsService.id)
-                .roleDefinitionId(acsCustomRole.id)
+                .roleDefinitionId(acsCustomRole.roleDefinitionResourceId)
                 .principalId(functionApp.identity.principalId)
                 .build()
         )

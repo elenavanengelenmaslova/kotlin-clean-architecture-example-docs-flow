@@ -125,7 +125,7 @@
           }
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
-        "role_definition_id": "${azurerm_role_definition.DocsFlowACSRoleDefinition.id}",
+        "role_definition_id": "${azurerm_role_definition.DocsFlowACSRoleDefinition.role_definition_resource_id}",
         "scope": "${azurerm_communication_service.DocsFlowACS.id}"
       },
       "DocsFlowFunctionAppBlobStorageRole": {
