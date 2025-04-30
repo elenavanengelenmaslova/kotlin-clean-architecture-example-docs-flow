@@ -255,132 +255,132 @@ class AwsStack(
                 .build()
         )
 
-        // Create API Gateway REST API (API Gateway v1)
-        val api = ApiGatewayRestApi(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-API",
-            ApiGatewayRestApiConfig.builder()
-                .name("DocsFlow-Spring-Clean-Architecture-API")
-                .binaryMediaTypes(listOf("*/*"))
-                .description("API for Spring Clean Architecture Example")
-                // Using REGIONAL endpoint type
-                .build()
-        )
-
-        // Create API Gateway Resource for docs-flow endpoint
-        val docsFlowResource = ApiGatewayResource(
-            this,
-            "DocsFlow-Resource",
-            ApiGatewayResourceConfig.builder()
-                .restApiId(api.id)
-                .parentId(api.rootResourceId)
-                .pathPart("docs-flow")
-                .build()
-        )
-
-        // Create API Gateway Method for docs-flow endpoint (POST only)
-        val docsFlowMethod = ApiGatewayMethod(
-            this,
-            "DocsFlow-Method",
-            ApiGatewayMethodConfig.builder()
-                .restApiId(api.id)
-                .resourceId(docsFlowResource.id)
-                .httpMethod("POST")  // Only allow POST method
-                .authorization("NONE")
-                .apiKeyRequired(true)  // Require API key
-                .build()
-        )
-
-        // Grant API Gateway permission to invoke Lambda for proxy endpoints
-        val lambdaPermissionAPI = LambdaPermission(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-Permission",
-            LambdaPermissionConfig.builder()
-                .functionName(lambdaFunction.functionName)
-                .action("lambda:InvokeFunction")
-                .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
-                .build()
-        )
-
-
-        // Create Lambda integration for docs-flow endpoint
-        val docsFlowIntegration = ApiGatewayIntegration(
-            this,
-            "DocsFlow-Integration",
-            ApiGatewayIntegrationConfig.builder()
-                .restApiId(api.id)
-                .dependsOn(listOf(lambdaPermissionAPI))
-                .resourceId(docsFlowResource.id)
-                .httpMethod(docsFlowMethod.httpMethod)
-                .integrationHttpMethod("POST")
-                .type("AWS_PROXY")
-                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
-                .build()
-        )
-
-        // Create API Gateway Deployment
-        val deployment = ApiGatewayDeployment(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-Deployment",
-            ApiGatewayDeploymentConfig.builder()
-                .restApiId(api.id)
-                .dependsOn(listOf(docsFlowIntegration))
-                .triggers(mapOf("redeploy" to Fn.timestamp()))
-                .build()
-        )
-
-        // Create API Gateway Stage
-        val stage = ApiGatewayStage(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-Stage",
-            ApiGatewayStageConfig.builder()
-                .restApiId(api.id)
-                .deploymentId(deployment.id)
-                .stageName("demo")
-                .build()
-        )
-
-        // Create API Key
-        val apiKey = ApiGatewayApiKey(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-ApiKey",
-            ApiGatewayApiKeyConfig.builder()
-                .name("DocsFlow-Spring-Clean-Architecture-ApiKey")
-                .description("API Key for Spring Clean Architecture Example")
-                .enabled(true)
-                .build()
-        )
-
-        // Create Usage Plan and associate it with the "prod" stage
-        val usagePlan = ApiGatewayUsagePlan(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-UsagePlan",
-            ApiGatewayUsagePlanConfig.builder()
-                .name("DocsFlow-Spring-Clean-Architecture-UsagePlan")
-                .description("Usage Plan for Spring Clean Architecture Example")
-                .apiStages(
-                    listOf(
-                        ApiGatewayUsagePlanApiStages.builder()
-                            .apiId(api.id)          // Link to API Gateway
-                            .stage(stage.stageName) // Associate with "prod" stage
-                            .build()
-                    )
-                )
-                .build()
-        )
-
-
-        // Link API Key to Usage Plan
-        ApiGatewayUsagePlanKey(
-            this,
-            "DocsFlow-Spring-Clean-Architecture-UsagePlanKey",
-            ApiGatewayUsagePlanKeyConfig.builder()
-                .keyId(apiKey.id)
-                .keyType("API_KEY")
-                .usagePlanId(usagePlan.id)
-                .build()
-        )
+//        // Create API Gateway REST API (API Gateway v1)
+//        val api = ApiGatewayRestApi(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-API",
+//            ApiGatewayRestApiConfig.builder()
+//                .name("DocsFlow-Spring-Clean-Architecture-API")
+//                .binaryMediaTypes(listOf("*/*"))
+//                .description("API for Spring Clean Architecture Example")
+//                // Using REGIONAL endpoint type
+//                .build()
+//        )
+//
+//        // Create API Gateway Resource for docs-flow endpoint
+//        val docsFlowResource = ApiGatewayResource(
+//            this,
+//            "DocsFlow-Resource",
+//            ApiGatewayResourceConfig.builder()
+//                .restApiId(api.id)
+//                .parentId(api.rootResourceId)
+//                .pathPart("docs-flow")
+//                .build()
+//        )
+//
+//        // Create API Gateway Method for docs-flow endpoint (POST only)
+//        val docsFlowMethod = ApiGatewayMethod(
+//            this,
+//            "DocsFlow-Method",
+//            ApiGatewayMethodConfig.builder()
+//                .restApiId(api.id)
+//                .resourceId(docsFlowResource.id)
+//                .httpMethod("POST")  // Only allow POST method
+//                .authorization("NONE")
+//                .apiKeyRequired(true)  // Require API key
+//                .build()
+//        )
+//
+//        // Grant API Gateway permission to invoke Lambda for proxy endpoints
+//        val lambdaPermissionAPI = LambdaPermission(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-Permission",
+//            LambdaPermissionConfig.builder()
+//                .functionName(lambdaFunction.functionName)
+//                .action("lambda:InvokeFunction")
+//                .principal("apigateway.amazonaws.com")
+//                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
+//                .build()
+//        )
+//
+//
+//        // Create Lambda integration for docs-flow endpoint
+//        val docsFlowIntegration = ApiGatewayIntegration(
+//            this,
+//            "DocsFlow-Integration",
+//            ApiGatewayIntegrationConfig.builder()
+//                .restApiId(api.id)
+//                .dependsOn(listOf(lambdaPermissionAPI))
+//                .resourceId(docsFlowResource.id)
+//                .httpMethod(docsFlowMethod.httpMethod)
+//                .integrationHttpMethod("POST")
+//                .type("AWS_PROXY")
+//                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
+//                .build()
+//        )
+//
+//        // Create API Gateway Deployment
+//        val deployment = ApiGatewayDeployment(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-Deployment",
+//            ApiGatewayDeploymentConfig.builder()
+//                .restApiId(api.id)
+//                .dependsOn(listOf(docsFlowIntegration))
+//                .triggers(mapOf("redeploy" to Fn.timestamp()))
+//                .build()
+//        )
+//
+//        // Create API Gateway Stage
+//        val stage = ApiGatewayStage(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-Stage",
+//            ApiGatewayStageConfig.builder()
+//                .restApiId(api.id)
+//                .deploymentId(deployment.id)
+//                .stageName("demo")
+//                .build()
+//        )
+//
+//        // Create API Key
+//        val apiKey = ApiGatewayApiKey(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-ApiKey",
+//            ApiGatewayApiKeyConfig.builder()
+//                .name("DocsFlow-Spring-Clean-Architecture-ApiKey")
+//                .description("API Key for Spring Clean Architecture Example")
+//                .enabled(true)
+//                .build()
+//        )
+//
+//        // Create Usage Plan and associate it with the "prod" stage
+//        val usagePlan = ApiGatewayUsagePlan(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-UsagePlan",
+//            ApiGatewayUsagePlanConfig.builder()
+//                .name("DocsFlow-Spring-Clean-Architecture-UsagePlan")
+//                .description("Usage Plan for Spring Clean Architecture Example")
+//                .apiStages(
+//                    listOf(
+//                        ApiGatewayUsagePlanApiStages.builder()
+//                            .apiId(api.id)          // Link to API Gateway
+//                            .stage(stage.stageName) // Associate with "prod" stage
+//                            .build()
+//                    )
+//                )
+//                .build()
+//        )
+//
+//
+//        // Link API Key to Usage Plan
+//        ApiGatewayUsagePlanKey(
+//            this,
+//            "DocsFlow-Spring-Clean-Architecture-UsagePlanKey",
+//            ApiGatewayUsagePlanKeyConfig.builder()
+//                .keyId(apiKey.id)
+//                .keyType("API_KEY")
+//                .usagePlanId(usagePlan.id)
+//                .build()
+//        )
 
 
         // Grant S3 permission to invoke the document processor Lambda
