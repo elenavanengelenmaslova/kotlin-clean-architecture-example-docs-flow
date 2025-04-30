@@ -59,7 +59,7 @@
             "uniqueId": "DocsFlowACS"
           }
         },
-        "data_location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
+        "data_location": "Europe",
         "name": "docsflow-acs",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
       }

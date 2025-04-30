@@ -210,7 +210,7 @@ class AzureStack(scope: Construct, id: String) :
             CommunicationServiceConfig.builder()
                 .name("docsflow-acs")  // must be globally unique
                 .resourceGroupName(resourceGroup.name)
-                .dataLocation(resourceGroup.location)
+                .dataLocation("Europe")
                 .build()
         )
 
