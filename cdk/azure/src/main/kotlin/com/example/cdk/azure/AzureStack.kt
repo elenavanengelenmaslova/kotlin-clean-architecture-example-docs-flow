@@ -3,12 +3,20 @@ package com.example.cdk.azure
 import com.hashicorp.cdktf.*
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsights
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsightsConfig
+import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationService
+import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationServiceConfig
+import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationService
+import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationServiceConfig
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroup
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroupConfig
 import com.hashicorp.cdktf.providers.azurerm.linux_function_app.*
+import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspace
+import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspaceConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProvider
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderFeatures
+import com.hashicorp.cdktf.providers.azurerm.resource_group_template_deployment.ResourceGroupTemplateDeployment
+import com.hashicorp.cdktf.providers.azurerm.resource_group_template_deployment.ResourceGroupTemplateDeploymentConfig
 import com.hashicorp.cdktf.providers.azurerm.role_assignment.RoleAssignment
 import com.hashicorp.cdktf.providers.azurerm.role_assignment.RoleAssignmentConfig
 import com.hashicorp.cdktf.providers.azurerm.service_plan.ServicePlan
@@ -126,11 +134,11 @@ class AzureStack(scope: Construct, id: String) :
         )
 
         // Create Storage Account for Blob Storage
-        val storageAccountMockNest = StorageAccount(
+        val storageAccountDocsFlow = StorageAccount(
             this,
-            "docs-flow-mocknest-sa",
+            "docs-flow-sa",
             StorageAccountConfig.builder()
-                .name("docsflowmocknest")  // ✅ Storage account name
+                .name("docsflow")  // ✅ Storage account name
                 .resourceGroupName(resourceGroup.name)
                 .location(resourceGroup.location)
                 .accountTier("Standard")
@@ -138,15 +146,15 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        // Create a Blob Storage Container for MockNest Mappings
+        // Create a Blob Storage Container for Docs Flow
         val storageContainer = StorageContainer(
             this,
-            "docs-flow-mocknest-container",
+            "docs-flow-container",
             StorageContainerConfig.builder()
-                .name("docs-flow-mocknest-mappings")  // Blob storage container name
-                .storageAccountName(storageAccountMockNest.name)
+                .name("docs-flow")  // Blob storage container name
+                .storageAccountId(storageAccountDocsFlow.id)
                 .containerAccessType("private")  // Private access for security
-                .dependsOn(listOf(storageAccountMockNest))
+                .dependsOn(listOf(storageAccountDocsFlow))
                 .build()
         )
 
@@ -163,6 +171,19 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+        val logAnalyticsWorkspace = LogAnalyticsWorkspace(
+            this,
+            "DocsFlowLogAnalyticsWorkspace",
+            LogAnalyticsWorkspaceConfig.builder()
+                .name("docs-flow-logs")
+                .location(resourceGroup.location)
+                .resourceGroupName(resourceGroup.name)
+                .sku("PerGB2018")
+                .retentionInDays(30)
+                .retentionInDays(30)
+                .build()
+        )
+
         // Create an Application Insights resource
         val appInsights = ApplicationInsights(
             this, "AppInsights",
@@ -171,6 +192,7 @@ class AzureStack(scope: Construct, id: String) :
                 .resourceGroupName(resourceGroup.name)
                 .location(resourceGroup.location)
                 .applicationType("java")
+                .workspaceId(logAnalyticsWorkspace.id)
                 .build()
         )
         val storageAccountAccessKeyVar = TerraformVariable(
@@ -183,6 +205,16 @@ class AzureStack(scope: Construct, id: String) :
         )
 
         val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
+
+        val acsService = CommunicationService(
+            this,
+            "DocsFlowACS",
+            CommunicationServiceConfig.builder()
+                .name("docsflow-acs")  // must be globally unique
+                .resourceGroupName(resourceGroup.name)
+                .dataLocation("Europe")
+                .build()
+        )
 
         // Create the Function App
         val functionApp = LinuxFunctionApp(
@@ -209,7 +241,8 @@ class AzureStack(scope: Construct, id: String) :
                             LinuxFunctionAppSiteConfigApplicationStack.builder()
                                 .javaVersion("21")
                                 .build()
-                        ).build()
+                        )
+                        .build()
                 )
                 .identity(
                     LinuxFunctionAppIdentity.builder()
@@ -218,9 +251,12 @@ class AzureStack(scope: Construct, id: String) :
                 )
                 .appSettings(
                     mapOf(
-                        "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         "APPINSIGHTS_INSTRUMENTATIONKEY" to appInsights.instrumentationKey,
+                        "MAIN_CLASS" to "com.example.clean.architecture.Application",
+                        "TriggerBlobStorage__accountName" to "docsflow",
+                        "TriggerBlobStorage__credential" to "managedidentity",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
+                        "ACS_ENDPOINT" to "https://${acsService.hostname}",
                     )
                 )
                 .build()
@@ -230,7 +266,7 @@ class AzureStack(scope: Construct, id: String) :
             this,
             "DocsFlowFunctionAppBlobStorageRole",
             RoleAssignmentConfig.builder()
-                .scope(storageAccountMockNest.id)  // Assign access at the Storage Account level
+                .scope(storageAccountDocsFlow.id)  // Assign access at the Storage Account level
                 .roleDefinitionName("Storage Blob Data Contributor")  // Allows reading and writing blobs
                 .principalId(functionApp.identity.principalId)  // Assign to Function App's Managed Identity
                 .build()
@@ -240,11 +276,56 @@ class AzureStack(scope: Construct, id: String) :
             this,
             "DocsFlowFunctionAppStorageContributorRole",
             RoleAssignmentConfig.builder()
-                .scope(storageAccountMockNest.id) // ✅ Give access to full Storage Account management
+                .scope(storageAccountDocsFlow.id) // ✅ Give access to full Storage Account management
                 .roleDefinitionName("Storage Account Contributor") // ✅ Allows creating/deleting tables
                 .principalId(functionApp.identity.principalId) // ✅ Assign to Function App's Managed Identity
                 .build()
         )
 
+        // Add Queue Data Contributor role for the Function App to access queues
+        RoleAssignment(
+            this,
+            "DocsFlowFunctionAppQueueContributorRole",
+            RoleAssignmentConfig.builder()
+                .scope(storageAccountDocsFlow.id) // Assign access at the Storage Account level
+                .roleDefinitionName("Storage Queue Data Contributor") // Allows reading, writing, and processing queue messages
+                .principalId(functionApp.identity.principalId) // Assign to Function App's Managed Identity
+                .build()
+        )
+
+
+        val acsCustomRole = com.hashicorp.cdktf.providers.azurerm.role_definition.RoleDefinition(
+            this,
+            "DocsFlowACSRoleDefinition",
+            com.hashicorp.cdktf.providers.azurerm.role_definition.RoleDefinitionConfig.builder()
+                .name("DocsFlowACSFunctionRole")
+                .scope("/subscriptions/${azureSubscriptionIdVar.stringValue}")
+                .permissions(
+                    listOf(
+                        com.hashicorp.cdktf.providers.azurerm.role_definition.RoleDefinitionPermissions.builder()
+                            .actions(
+                                listOf(
+                                    "Microsoft.Communication/CommunicationServices/Read",
+                                    "Microsoft.Communication/CommunicationServices/Write"
+                                )
+                            )
+                            .notActions(emptyList())
+                            .build()
+                    )
+                )
+                .assignableScopes(listOf(acsService.id))
+                .description("Custom role for Azure Function to send emails using ACS")
+                .build()
+        )
+
+        RoleAssignment(
+            this,
+            "DocsFlowFunctionAppACSEmailSenderRole",
+            RoleAssignmentConfig.builder()
+                .scope(acsService.id)
+                .roleDefinitionId(acsCustomRole.roleDefinitionResourceId)
+                .principalId(functionApp.identity.principalId)
+                .build()
+        )
     }
 }

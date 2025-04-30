@@ -1,14 +1,13 @@
 name: Azure function infra CI/CD Feature
 on:
   push:
-    branches: [ xxfeature/* ]
+    branches: [ feature/* ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - 'cdk/aws/**'
       - 'software/infrastructure/aws/**'
-      - ./.github/workflows/feature-aws.yml
-      - ./.github/workflows/workflow-build-deploy-aws.yml
+      - ".github/workflows/**-aws.yml"
   workflow_dispatch:
 
 jobs:

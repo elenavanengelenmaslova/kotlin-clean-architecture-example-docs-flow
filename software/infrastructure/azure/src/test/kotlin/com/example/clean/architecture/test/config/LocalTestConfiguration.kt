@@ -1,5 +1,6 @@
 package com.example.clean.architecture.test.config
 
+import com.azure.communication.email.EmailClient
 import com.azure.storage.blob.BlobContainerClient
 import io.mockk.mockk
 import org.springframework.boot.test.context.TestConfiguration
@@ -10,4 +11,7 @@ class LocalTestConfiguration {
 
     @Bean
     fun blobContainerClient(): BlobContainerClient = mockk(relaxed = true)
+
+    @Bean
+    fun emailClient(): EmailClient = mockk(relaxed = true)
 }

@@ -47,6 +47,20 @@
         "application_type": "java",
         "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
         "name": "docs-flow-spring-cloud-app-insights",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "workspace_id": "${azurerm_log_analytics_workspace.DocsFlowLogAnalyticsWorkspace.id}"
+      }
+    },
+    "azurerm_communication_service": {
+      "DocsFlowACS": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowACS",
+            "uniqueId": "DocsFlowACS"
+          }
+        },
+        "data_location": "Europe",
+        "name": "docsflow-acs",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
       }
     },
@@ -59,8 +73,11 @@
           }
         },
         "app_settings": {
+          "ACS_ENDPOINT": "https://${azurerm_communication_service.DocsFlowACS.hostname}",
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
+          "TriggerBlobStorage__accountName": "docsflow",
+          "TriggerBlobStorage__credential": "managedidentity",
           "WEBSITE_RUN_FROM_PACKAGE": "1"
         },
         "depends_on": [
@@ -84,7 +101,33 @@
         "storage_account_name": "${var.AZURE_STORAGE_ACCOUNT_NAME}"
       }
     },
+    "azurerm_log_analytics_workspace": {
+      "DocsFlowLogAnalyticsWorkspace": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowLogAnalyticsWorkspace",
+            "uniqueId": "DocsFlowLogAnalyticsWorkspace"
+          }
+        },
+        "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
+        "name": "docs-flow-logs",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "retention_in_days": 30,
+        "sku": "PerGB2018"
+      }
+    },
     "azurerm_role_assignment": {
+      "DocsFlowFunctionAppACSEmailSenderRole": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowFunctionAppACSEmailSenderRole",
+            "uniqueId": "DocsFlowFunctionAppACSEmailSenderRole"
+          }
+        },
+        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "role_definition_id": "${azurerm_role_definition.DocsFlowACSRoleDefinition.role_definition_resource_id}",
+        "scope": "${azurerm_communication_service.DocsFlowACS.id}"
+      },
       "DocsFlowFunctionAppBlobStorageRole": {
         "//": {
           "metadata": {
@@ -94,7 +137,18 @@
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Blob Data Contributor",
-        "scope": "${azurerm_storage_account.docs-flow-mocknest-sa.id}"
+        "scope": "${azurerm_storage_account.docs-flow-sa.id}"
+      },
+      "DocsFlowFunctionAppQueueContributorRole": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowFunctionAppQueueContributorRole",
+            "uniqueId": "DocsFlowFunctionAppQueueContributorRole"
+          }
+        },
+        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "role_definition_name": "Storage Queue Data Contributor",
+        "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       },
       "DocsFlowFunctionAppStorageContributorRole": {
         "//": {
@@ -105,7 +159,33 @@
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Account Contributor",
-        "scope": "${azurerm_storage_account.docs-flow-mocknest-sa.id}"
+        "scope": "${azurerm_storage_account.docs-flow-sa.id}"
+      }
+    },
+    "azurerm_role_definition": {
+      "DocsFlowACSRoleDefinition": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowACSRoleDefinition",
+            "uniqueId": "DocsFlowACSRoleDefinition"
+          }
+        },
+        "assignable_scopes": [
+          "${azurerm_communication_service.DocsFlowACS.id}"
+        ],
+        "description": "Custom role for Azure Function to send emails using ACS",
+        "name": "DocsFlowACSFunctionRole",
+        "permissions": [
+          {
+            "actions": [
+              "Microsoft.Communication/CommunicationServices/Read",
+              "Microsoft.Communication/CommunicationServices/Write"
+            ],
+            "not_actions": [
+            ]
+          }
+        ],
+        "scope": "/subscriptions/${var.AZURE_SUBSCRIPTION_ID}"
       }
     },
     "azurerm_service_plan": {
@@ -127,34 +207,34 @@
       }
     },
     "azurerm_storage_account": {
-      "docs-flow-mocknest-sa": {
+      "docs-flow-sa": {
         "//": {
           "metadata": {
-            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-mocknest-sa",
-            "uniqueId": "docs-flow-mocknest-sa"
+            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-sa",
+            "uniqueId": "docs-flow-sa"
           }
         },
         "account_replication_type": "LRS",
         "account_tier": "Standard",
         "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
-        "name": "docsflowmocknest",
+        "name": "docsflow",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
       }
     },
     "azurerm_storage_container": {
-      "docs-flow-mocknest-container": {
+      "docs-flow-container": {
         "//": {
           "metadata": {
-            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-mocknest-container",
-            "uniqueId": "docs-flow-mocknest-container"
+            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-container",
+            "uniqueId": "docs-flow-container"
           }
         },
         "container_access_type": "private",
         "depends_on": [
-          "azurerm_storage_account.docs-flow-mocknest-sa"
+          "azurerm_storage_account.docs-flow-sa"
         ],
-        "name": "docs-flow-mocknest-mappings",
-        "storage_account_name": "${azurerm_storage_account.docs-flow-mocknest-sa.name}"
+        "name": "docs-flow",
+        "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
       }
     }
   },

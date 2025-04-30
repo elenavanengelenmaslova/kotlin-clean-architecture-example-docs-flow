@@ -1,18 +1,16 @@
 package com.example.clean.architecture.aws.persistence
 
 import aws.sdk.kotlin.services.s3.S3Client
-import aws.sdk.kotlin.services.s3.model.DeleteObjectRequest
 import aws.sdk.kotlin.services.s3.model.GetObjectRequest
-import aws.sdk.kotlin.services.s3.model.ListObjectsV2Request
 import aws.sdk.kotlin.services.s3.model.PutObjectRequest
+import aws.sdk.kotlin.services.s3.presigners.presignGetObject
 import aws.smithy.kotlin.runtime.content.ByteStream
-import aws.smithy.kotlin.runtime.content.toByteArray
 import com.example.clean.architecture.persistence.ObjectStorageInterface
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Repository
-import java.nio.charset.StandardCharsets
+import kotlin.time.Duration.Companion.hours
 
 private val logger = KotlinLogging.logger {}
 
@@ -22,11 +20,10 @@ class S3ObjectStore(
     private val s3Client: S3Client,
 ) : ObjectStorageInterface {
 
-    override fun save(id: String, content: String): String = runBlocking {
-        logger.info { "Saving mapping with id: $id" }
+    override fun save(id: String, content: ByteArray): String = runBlocking {
+        logger.info { "Saving doc with id: $id" }
         runCatching {
-            val contentBytes = content.toByteArray(StandardCharsets.UTF_8)
-            val byteStream = ByteStream.fromBytes(contentBytes)
+            val byteStream = ByteStream.fromBytes(content)
             s3Client.putObject(
                 PutObjectRequest {
                     bucket = bucketName
@@ -35,43 +32,24 @@ class S3ObjectStore(
                 }
             )
             "s3://$bucketName/$id"
-        }.onFailure { e -> logger.error(e) { "Failed to save mapping with id: $id" } }
+        }.onFailure { e -> logger.error(e) { "Failed to save doc with id: $id" } }
             .getOrThrow()
 
     }
 
-    override fun get(id: String): String? = runBlocking {
-        logger.info { "Getting mapping with id: $id" }
+    override fun generateSecureAccessUri(id: String): String = runBlocking {
+        logger.info { "Generating presigned URL for doc with id: $id" }
         runCatching {
-            var content: String? = null
-            s3Client.getObject(GetObjectRequest {
+            val request = GetObjectRequest {
                 bucket = bucketName
                 key = id
-            }) { response ->
-                content = response.body?.toByteArray()?.toString(StandardCharsets.UTF_8)
             }
-            content
+            val presigned = s3Client.presignGetObject(request, 24.hours)
+            val url = presigned.url.toString()
+            logger.info { "Generated presigned URL: $url" }
+            url
         }.onFailure { e ->
-            logger.info { "Mapping with id: $id not found: ${e.message}" }
+            logger.error(e) { "Failed to generate presigned URL for doc with id: $id" }
         }.getOrThrow()
-    }
-
-    override fun delete(id: String): Unit = runBlocking {
-        logger.info { "Deleting mapping with id: $id" }
-        runCatching {
-            s3Client.deleteObject(DeleteObjectRequest {
-                bucket = bucketName
-                key = id
-            })
-        }.onFailure { e -> logger.info { "Error deleting mapping with id: $id: ${e.message}" } }
-            .getOrThrow()
-    }
-
-    override fun list(): List<String> = runBlocking {
-        logger.info { "Listing all mappings" }
-        runCatching {
-            s3Client.listObjectsV2(ListObjectsV2Request { bucket = bucketName })
-        }.onFailure { e -> logger.error(e) { "Failed to list mappings" } }
-            .getOrThrow().contents?.mapNotNull { it.key } ?: emptyList()
     }
 }

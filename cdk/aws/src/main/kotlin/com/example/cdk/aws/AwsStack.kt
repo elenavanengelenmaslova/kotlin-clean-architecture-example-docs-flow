@@ -35,6 +35,9 @@ import com.hashicorp.cdktf.providers.aws.provider.AwsProvider
 import com.hashicorp.cdktf.providers.aws.provider.AwsProviderConfig
 import com.hashicorp.cdktf.providers.aws.s3_bucket.S3Bucket
 import com.hashicorp.cdktf.providers.aws.s3_bucket.S3BucketConfig
+import com.hashicorp.cdktf.providers.aws.s3_bucket_notification.S3BucketNotification
+import com.hashicorp.cdktf.providers.aws.s3_bucket_notification.S3BucketNotificationConfig
+import com.hashicorp.cdktf.providers.aws.s3_bucket_notification.S3BucketNotificationLambdaFunction
 import com.hashicorp.cdktf.providers.random_provider.provider.RandomProvider
 import com.hashicorp.cdktf.providers.random_provider.string_resource.StringResource
 import software.constructs.Construct
@@ -93,12 +96,12 @@ class AwsStack(
             .build()
             .result
 
-        // Define S3 bucket for MockNest mappings
+        // Define S3 bucket for DocsFlow
         val s3Bucket = S3Bucket(
             this,
-            "DocsFlowMockNestMappingsBucket",
+            "DocsFlowBucket",
             S3BucketConfig.builder()
-                .bucket("docs-flow-mocknest-mappings-$bucketSuffix")
+                .bucket("docs-flow-$bucketSuffix")
                 .build()
         )
 
@@ -153,6 +156,14 @@ class AwsStack(
                 "${s3Bucket.arn}",          
                 "${s3Bucket.arn}/*"   
             ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                 "ses:SendEmail",
+                 "ses:SendRawEmail"
+            ],
+            "Resource": "*"
         }
     ]
 }
@@ -196,10 +207,46 @@ class AwsStack(
                     LambdaFunctionEnvironment.builder()
                         .variables(
                             mapOf(
-                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "router",
+                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "uploadDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
                                 //Stop at level 1 (C1 compiler)
+                                "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+                            )
+                        ).build()
+                )
+                .timeout(120)
+                .build()
+        )
+
+        // Create Lambda function for processing documents when uploaded to S3
+        val documentProcessorLambda = LambdaFunction(
+            this,
+            "DocsFlow-Document-Processor",
+            LambdaFunctionConfig.builder()
+                .functionName("DocsFlow-Document-Processor")
+                .handler("org.springframework.cloud.function.adapter.aws.FunctionInvoker")
+                .runtime("java21")
+                .s3Bucket("lambda-deployment-clean-architecture-example")
+                .s3Key("docs-flow-aws-function.jar")
+                .sourceCodeHash(
+                    Fn.filebase64sha256("../../../../../build/dist/docs-flow-aws-function.jar")
+                )
+                .role(lambdaRole.arn)
+                .dependsOn(
+                    listOf(
+                        s3Bucket,
+                        lambdaRole
+                    )
+                )
+                .memorySize(1024)
+                .environment(
+                    LambdaFunctionEnvironment.builder()
+                        .variables(
+                            mapOf(
+                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "processDocument",
+                                "MAIN_CLASS" to "com.example.clean.architecture.Application",
+                                "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
                         ).build()
@@ -214,43 +261,58 @@ class AwsStack(
             "DocsFlow-Spring-Clean-Architecture-API",
             ApiGatewayRestApiConfig.builder()
                 .name("DocsFlow-Spring-Clean-Architecture-API")
+                .binaryMediaTypes(listOf("*/*"))
                 .description("API for Spring Clean Architecture Example")
                 // Using REGIONAL endpoint type
                 .build()
         )
 
-        // Create API Gateway Resource
-        val resource = ApiGatewayResource(
+        // Create API Gateway Resource for docs-flow endpoint
+        val docsFlowResource = ApiGatewayResource(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Resource",
+            "DocsFlow-Resource",
             ApiGatewayResourceConfig.builder()
                 .restApiId(api.id)
                 .parentId(api.rootResourceId)
-                .pathPart("{proxy+}")
+                .pathPart("docs-flow")
                 .build()
         )
 
-        // Create API Gateway Method
-        val method = ApiGatewayMethod(
+        // Create API Gateway Method for docs-flow endpoint (POST only)
+        val docsFlowMethod = ApiGatewayMethod(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Method",
+            "DocsFlow-Method",
             ApiGatewayMethodConfig.builder()
                 .restApiId(api.id)
-                .resourceId(resource.id)
-                .httpMethod("ANY")
+                .resourceId(docsFlowResource.id)
+                .httpMethod("POST")  // Only allow POST method
                 .authorization("NONE")
                 .apiKeyRequired(true)  // Require API key
                 .build()
         )
 
-        // Create Lambda integration for API Gateway
-        val integration = ApiGatewayIntegration(
+        // Grant API Gateway permission to invoke Lambda for proxy endpoints
+        val lambdaPermissionAPI = LambdaPermission(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Integration",
+            "DocsFlow-Spring-Clean-Architecture-Permission",
+            LambdaPermissionConfig.builder()
+                .functionName(lambdaFunction.functionName)
+                .action("lambda:InvokeFunction")
+                .principal("apigateway.amazonaws.com")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
+                .build()
+        )
+
+
+        // Create Lambda integration for docs-flow endpoint
+        val docsFlowIntegration = ApiGatewayIntegration(
+            this,
+            "DocsFlow-Integration",
             ApiGatewayIntegrationConfig.builder()
                 .restApiId(api.id)
-                .resourceId(resource.id)
-                .httpMethod(method.httpMethod)
+                .dependsOn(listOf(lambdaPermissionAPI))
+                .resourceId(docsFlowResource.id)
+                .httpMethod(docsFlowMethod.httpMethod)
                 .integrationHttpMethod("POST")
                 .type("AWS_PROXY")
                 .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
@@ -263,7 +325,7 @@ class AwsStack(
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
-                .dependsOn(listOf(integration))
+                .dependsOn(listOf(docsFlowIntegration))
                 .build()
         )
 
@@ -319,15 +381,34 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda
-        LambdaPermission(
+
+        // Grant S3 permission to invoke the document processor Lambda
+        val s3LambdaPermission = LambdaPermission(
             this,
-            "DocsFlow-Spring-Clean-Architecture-Permission",
+            "DocsFlow-S3-Permission",
             LambdaPermissionConfig.builder()
-                .functionName(lambdaFunction.functionName)
+                .functionName(documentProcessorLambda.functionName)
                 .action("lambda:InvokeFunction")
-                .principal("apigateway.amazonaws.com")
-                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/${method.httpMethod}/${resource.pathPart}")
+                .principal("s3.amazonaws.com")
+                .sourceArn(s3Bucket.arn)
+                .build()
+        )
+
+        // Configure S3 bucket to trigger Lambda when objects are created
+        val s3BucketNotification = S3BucketNotification(
+            this,
+            "DocsFlow-S3-Notification",
+            S3BucketNotificationConfig.builder()
+                .bucket(s3Bucket.id)
+                .dependsOn(listOf(s3LambdaPermission))
+                .lambdaFunction(
+                    listOf(
+                        S3BucketNotificationLambdaFunction.builder()
+                            .events(listOf("s3:ObjectCreated:*"))
+                            .lambdaFunctionArn(documentProcessorLambda.arn)
+                            .build()
+                    )
+                )
                 .build()
         )
     }
