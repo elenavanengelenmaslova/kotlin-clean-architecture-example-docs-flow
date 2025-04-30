@@ -216,32 +216,6 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        val emailServiceDeployment = ResourceGroupTemplateDeployment(
-            this,
-            "DocsFlowACSEmailServiceDeployment",
-            ResourceGroupTemplateDeploymentConfig.builder()
-                .name("emailServiceDeployment")
-                .resourceGroupName(resourceGroup.name)
-                .deploymentMode("Incremental")
-                .templateContent(
-                    """
-            {
-              "${'$'}schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-              "contentVersion": "1.0.0.0",
-              "resources": [
-                {
-                  "type": "Microsoft.Communication/communicationServices/emailServices",
-                  "apiVersion": "2023-03-31",
-                  "name": "docsflow-acs/default",
-                  "location": "global",
-                  "properties": {}
-                }
-              ]
-            }
-            """.trimIndent()
-                )
-                .build()
-        )
         // Create the Function App
         val functionApp = LinuxFunctionApp(
             this, "DocsFlowSpringCloudFunctionApp",
