@@ -116,6 +116,20 @@
         "sku": "PerGB2018"
       }
     },
+    "azurerm_resource_group_template_deployment": {
+      "DocsFlowACSEmailServiceDeployment": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowACSEmailServiceDeployment",
+            "uniqueId": "DocsFlowACSEmailServiceDeployment"
+          }
+        },
+        "deployment_mode": "Incremental",
+        "name": "emailServiceDeployment",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "template_content": "{\n  \"$schema\": \"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#\",\n  \"contentVersion\": \"1.0.0.0\",\n  \"resources\": [\n    {\n      \"type\": \"Microsoft.Communication/communicationServices/emailServices\",\n      \"apiVersion\": \"2023-03-31\",\n      \"name\": \"default\",\n      \"location\": \"global\",\n      \"properties\": {}\n    }\n  ]\n}"
+      }
+    },
     "azurerm_role_assignment": {
       "DocsFlowFunctionAppACSEmailSenderRole": {
         "//": {

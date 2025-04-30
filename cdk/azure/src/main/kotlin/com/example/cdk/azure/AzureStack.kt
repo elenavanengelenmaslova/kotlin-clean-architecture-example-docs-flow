@@ -15,6 +15,8 @@ import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalytic
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProvider
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderFeatures
+import com.hashicorp.cdktf.providers.azurerm.resource_group_template_deployment.ResourceGroupTemplateDeployment
+import com.hashicorp.cdktf.providers.azurerm.resource_group_template_deployment.ResourceGroupTemplateDeploymentConfig
 import com.hashicorp.cdktf.providers.azurerm.role_assignment.RoleAssignment
 import com.hashicorp.cdktf.providers.azurerm.role_assignment.RoleAssignmentConfig
 import com.hashicorp.cdktf.providers.azurerm.service_plan.ServicePlan
@@ -211,6 +213,33 @@ class AzureStack(scope: Construct, id: String) :
                 .name("docsflow-acs")  // must be globally unique
                 .resourceGroupName(resourceGroup.name)
                 .dataLocation("Europe")
+                .build()
+        )
+
+        val emailServiceDeployment = ResourceGroupTemplateDeployment(
+            this,
+            "DocsFlowACSEmailServiceDeployment",
+            ResourceGroupTemplateDeploymentConfig.builder()
+                .name("emailServiceDeployment")
+                .resourceGroupName(resourceGroup.name)
+                .deploymentMode("Incremental")
+                .templateContent(
+                    """
+            {
+              "${"$"}schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "resources": [
+                {
+                  "type": "Microsoft.Communication/communicationServices/emailServices",
+                  "apiVersion": "2023-03-31",
+                  "name": "default",
+                  "location": "global",
+                  "properties": {}
+                }
+              ]
+            }
+            """.trimIndent()
+                )
                 .build()
         )
 
