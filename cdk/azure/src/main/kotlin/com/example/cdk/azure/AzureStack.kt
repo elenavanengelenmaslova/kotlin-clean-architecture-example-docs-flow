@@ -5,8 +5,6 @@ import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationIns
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsightsConfig
 import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationService
 import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationServiceConfig
-import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationService
-import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationServiceConfig
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroup
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroupConfig
 import com.hashicorp.cdktf.providers.azurerm.linux_function_app.*
@@ -15,8 +13,6 @@ import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalytic
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProvider
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderFeatures
-import com.hashicorp.cdktf.providers.azurerm.resource_group_template_deployment.ResourceGroupTemplateDeployment
-import com.hashicorp.cdktf.providers.azurerm.resource_group_template_deployment.ResourceGroupTemplateDeploymentConfig
 import com.hashicorp.cdktf.providers.azurerm.role_assignment.RoleAssignment
 import com.hashicorp.cdktf.providers.azurerm.role_assignment.RoleAssignmentConfig
 import com.hashicorp.cdktf.providers.azurerm.service_plan.ServicePlan

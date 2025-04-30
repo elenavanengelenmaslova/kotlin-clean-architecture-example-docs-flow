@@ -34,7 +34,7 @@ class AutoDocumentReviewer(
             "Kept me guessing whether it would ever end — thrilling!",
             "Even AI stopped reading halfway through and needed a coffee break.",
             "Flows smoother than a Friday deploy on espresso.",
-            "Dont beat around the bush, and get to the point!"
+            "Don't beat around the bush, and get to the point!"
         )
     }
 }
