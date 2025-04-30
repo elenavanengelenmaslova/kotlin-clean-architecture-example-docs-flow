@@ -3,6 +3,8 @@ package com.example.cdk.azure
 import com.hashicorp.cdktf.*
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsights
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsightsConfig
+import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationService
+import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationServiceConfig
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationService
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_communication_service.DataAzurermCommunicationServiceConfig
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroup
@@ -202,6 +204,16 @@ class AzureStack(scope: Construct, id: String) :
 
         val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
 
+        val acsService = CommunicationService(
+            this,
+            "DocsFlowACS",
+            CommunicationServiceConfig.builder()
+                .name("docsflow-acs")  // must be globally unique
+                .resourceGroupName(resourceGroup.name)
+                .dataLocation(resourceGroup.location)
+                .build()
+        )
+
         // Create the Function App
         val functionApp = LinuxFunctionApp(
             this, "DocsFlowSpringCloudFunctionApp",
@@ -242,6 +254,7 @@ class AzureStack(scope: Construct, id: String) :
                         "TriggerBlobStorage__accountName" to "docsflow",
                         "TriggerBlobStorage__credential" to "managedidentity",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
+                        "ACS_ENDPOINT" to acsService.hostname,
                     )
                 )
                 .build()
@@ -278,14 +291,6 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        val acsService = DataAzurermCommunicationService(
-            this,
-            "CommunicationService",
-            DataAzurermCommunicationServiceConfig.builder()
-                .name("docsflow-acs")
-                .resourceGroupName(resourceGroup.name)
-                .build()
-        )
 
         RoleAssignment(
             this,

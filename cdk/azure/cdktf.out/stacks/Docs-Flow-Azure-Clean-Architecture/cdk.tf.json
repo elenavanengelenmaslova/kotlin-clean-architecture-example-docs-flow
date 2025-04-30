@@ -9,18 +9,6 @@
     }
   },
   "data": {
-    "azurerm_communication_service": {
-      "CommunicationService": {
-        "//": {
-          "metadata": {
-            "path": "Docs-Flow-Azure-Clean-Architecture/CommunicationService",
-            "uniqueId": "CommunicationService"
-          }
-        },
-        "name": "docsflow-acs",
-        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
-      }
-    },
     "azurerm_resource_group": {
       "ExistingResourceGroup": {
         "//": {
@@ -63,6 +51,19 @@
         "workspace_id": "${azurerm_log_analytics_workspace.DocsFlowLogAnalyticsWorkspace.id}"
       }
     },
+    "azurerm_communication_service": {
+      "DocsFlowACS": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowACS",
+            "uniqueId": "DocsFlowACS"
+          }
+        },
+        "data_location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
+        "name": "docsflow-acs",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
+      }
+    },
     "azurerm_linux_function_app": {
       "DocsFlowSpringCloudFunctionApp": {
         "//": {
@@ -72,6 +73,7 @@
           }
         },
         "app_settings": {
+          "ACS_ENDPOINT": "${azurerm_communication_service.DocsFlowACS.hostname}",
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "TriggerBlobStorage__accountName": "docsflow",
@@ -124,7 +126,7 @@
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Azure Communication Services Email Sender",
-        "scope": "${data.azurerm_communication_service.CommunicationService.id}"
+        "scope": "${azurerm_communication_service.DocsFlowACS.id}"
       },
       "DocsFlowFunctionAppBlobStorageRole": {
         "//": {
