@@ -116,6 +116,7 @@ This project can be deployed to either AWS or Azure or both. Depending on your t
   - Create and manage S3 buckets
   - Configure SES Identities (Sandbox)
   - Deploy AWS resources via Terraform
+- Create identities for sender and receiver email address in your SES (Sandbox)
 
 #### Azure Account Requirements
 - An Azure account with permissions to:
@@ -125,6 +126,10 @@ This project can be deployed to either AWS or Azure or both. Depending on your t
   - Create Azure Communication resources
   - Assign roles to managed identities
   - Deploy Azure resources via Terraform
+- Register your subscription with microsoft communication:
+  - `az provider register --namespace Microsoft.Communication`
+  - wait till Registered status: `az provider show --namespace Microsoft.Communication --query "registrationState"
+`
 
 ## Build Project
 After checking out the project, ensure it can build properly by running:

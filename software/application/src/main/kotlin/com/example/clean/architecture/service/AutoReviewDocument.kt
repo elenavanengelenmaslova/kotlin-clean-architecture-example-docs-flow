@@ -12,7 +12,7 @@ class AutoDocumentReviewer(
 
     override fun invoke(blobId: String): Result<String> = runCatching {
         val linkToDocument = objectStorage.generateSecureAccessUri(blobId)
-        val review = "${someVeryComplexReviewBusinessLogic()}, see $linkToDocument"
+        val review = "${someVeryComplexReviewBusinessLogic()}\n Download at: $linkToDocument"
         documentNotification.sendEmail(review)
         review
     }

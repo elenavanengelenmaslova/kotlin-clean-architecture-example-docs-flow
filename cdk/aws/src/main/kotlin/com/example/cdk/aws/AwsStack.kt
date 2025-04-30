@@ -326,6 +326,7 @@ class AwsStack(
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
                 .dependsOn(listOf(docsFlowIntegration))
+                .triggers(mapOf("always" to Fn.timestamp()))
                 .build()
         )
 
