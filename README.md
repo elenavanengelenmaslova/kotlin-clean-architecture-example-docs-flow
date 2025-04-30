@@ -16,6 +16,7 @@
   ```
 
 ## Use cases
+![SolutionDesign.png](docs/UseCases.png)
 ```plantuml
 
 @startuml

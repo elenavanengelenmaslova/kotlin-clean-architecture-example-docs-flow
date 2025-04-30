@@ -125,7 +125,7 @@
           }
         },
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
-        "role_definition_name": "Azure Communication Services Email Sender",
+        "role_definition_id": "${azurerm_role_definition.DocsFlowACSRoleDefinition.id}",
         "scope": "${azurerm_communication_service.DocsFlowACS.id}"
       },
       "DocsFlowFunctionAppBlobStorageRole": {
@@ -160,6 +160,32 @@
         "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Account Contributor",
         "scope": "${azurerm_storage_account.docs-flow-sa.id}"
+      }
+    },
+    "azurerm_role_definition": {
+      "DocsFlowACSRoleDefinition": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowACSRoleDefinition",
+            "uniqueId": "DocsFlowACSRoleDefinition"
+          }
+        },
+        "assignable_scopes": [
+          "${azurerm_communication_service.DocsFlowACS.id}"
+        ],
+        "description": "Custom role for Azure Function to send emails using ACS",
+        "name": "DocsFlowACSFunctionRole",
+        "permissions": [
+          {
+            "actions": [
+              "Microsoft.Communication/CommunicationServices/Read",
+              "Microsoft.Communication/CommunicationServices/Write"
+            ],
+            "not_actions": [
+            ]
+          }
+        ],
+        "scope": "/subscriptions/${var.AZURE_SUBSCRIPTION_ID}"
       }
     },
     "azurerm_service_plan": {

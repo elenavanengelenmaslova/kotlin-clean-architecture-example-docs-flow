@@ -292,12 +292,36 @@ class AzureStack(scope: Construct, id: String) :
         )
 
 
+        val acsCustomRole = com.hashicorp.cdktf.providers.azurerm.role_definition.RoleDefinition(
+            this,
+            "DocsFlowACSRoleDefinition",
+            com.hashicorp.cdktf.providers.azurerm.role_definition.RoleDefinitionConfig.builder()
+                .name("DocsFlowACSFunctionRole")
+                .scope("/subscriptions/${azureSubscriptionIdVar.stringValue}")
+                .permissions(
+                    listOf(
+                        com.hashicorp.cdktf.providers.azurerm.role_definition.RoleDefinitionPermissions.builder()
+                            .actions(
+                                listOf(
+                                    "Microsoft.Communication/CommunicationServices/Read",
+                                    "Microsoft.Communication/CommunicationServices/Write"
+                                )
+                            )
+                            .notActions(emptyList())
+                            .build()
+                    )
+                )
+                .assignableScopes(listOf(acsService.id))
+                .description("Custom role for Azure Function to send emails using ACS")
+                .build()
+        )
+
         RoleAssignment(
             this,
             "DocsFlowFunctionAppACSEmailSenderRole",
             RoleAssignmentConfig.builder()
                 .scope(acsService.id)
-                .roleDefinitionName("Azure Communication Services Email Sender")
+                .roleDefinitionId(acsCustomRole.id)
                 .principalId(functionApp.identity.principalId)
                 .build()
         )
