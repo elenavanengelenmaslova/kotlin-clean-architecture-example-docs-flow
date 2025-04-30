@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.example.clean.architecture.model.HttpRequest
+import com.example.clean.architecture.model.HttpResponse
 import com.example.clean.architecture.service.HandleDocsFlowRequest
 import com.example.clean.architecture.service.ReviewAndNotifyDocument
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -26,8 +27,12 @@ class DocsFlowFunctions(
         return Function { event ->
             with(event) {
                 logger.info { "Request: $httpMethod $path $headers" }
+                val request = createHttpRequest()
                 //TODO: call handle flow
-                handleDocsFlowRequest(createHttpRequest())
+                HttpResponse(
+                    org.springframework.http.HttpStatus.OK,
+                    body = "Hello, world!"
+                )
             }.let {
                 APIGatewayProxyResponseEvent()
                     .withStatusCode(it.httpStatusCode.value())
@@ -46,7 +51,7 @@ class DocsFlowFunctions(
                 val key = record.s3.`object`.key
                 logger.info { "Document uploaded to bucket: $bucket, key: $key" }
                 //TODO: auto review and notify document
-                autoReviewAndNotifyDocument(key).getOrThrow()
+                "Hello, world!"
             }.joinToString("\n") { it }
         }
     }
