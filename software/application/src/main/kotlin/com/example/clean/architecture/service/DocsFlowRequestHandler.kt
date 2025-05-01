@@ -16,7 +16,7 @@ private val logger = KotlinLogging.logger {}
  */
 @Component
 class DocsFlowRequestHandler(
-    //TODO: inject object storage
+    val objectStorage: ObjectStorageInterface,
 ) : HandleDocsFlowRequest {
 
     override fun invoke(httpRequest: HttpRequest): HttpResponse {
@@ -37,8 +37,7 @@ class DocsFlowRequestHandler(
             val documentId = "${UUID.randomUUID()}.docx"
 
             // Save the document to storage
-            //TODO: save to object storage
-            val documentUrl = "Hello world"
+            val documentUrl = objectStorage.save(documentId, body)
 
             logger.info { "Document saved successfully with ID: $documentId at URL: $documentUrl" }
 
