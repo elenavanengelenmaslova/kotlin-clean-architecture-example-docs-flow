@@ -1,4 +1,4 @@
-package com.example.clean.architecture.aws.function
+package com.example.clean.architecture.aws
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
@@ -11,6 +11,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import java.util.*
 import java.util.function.Function
 
@@ -19,8 +20,7 @@ private val logger = KotlinLogging.logger {}
 
 @Configuration
 class DocsFlowFunctions(
-    private val handleDocsFlowRequest: HandleDocsFlowRequest,
-    private val autoReviewAndNotifyDocument: ReviewAndNotifyDocument
+    //TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument
 ) {
     @Bean
     fun uploadDocument(): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
@@ -30,7 +30,7 @@ class DocsFlowFunctions(
                 val request = createHttpRequest()
                 //TODO: call handle flow
                 HttpResponse(
-                    org.springframework.http.HttpStatus.OK,
+                    HttpStatus.OK,
                     body = "Hello, world!"
                 )
             }.let {
