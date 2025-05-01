@@ -17,7 +17,7 @@ private val logger = KotlinLogging.logger {}
 
 @Component
 class DocsFlowFunctions(
-    //TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument
+    //TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument service
 ) {
 
     @FunctionName("UploadDocument")
