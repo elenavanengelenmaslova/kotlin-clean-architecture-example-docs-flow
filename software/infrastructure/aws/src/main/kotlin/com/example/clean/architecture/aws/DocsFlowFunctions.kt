@@ -19,20 +19,14 @@ private val logger = KotlinLogging.logger {}
 
 
 @Configuration
-class DocsFlowFunctions(
-    //TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument
-) {
+class DocsFlowFunctions() {
     @Bean
-    fun uploadDocument(): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+    fun uploadDocument(handleDocsFlowRequest: HandleDocsFlowRequest): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
         return Function { event ->
             with(event) {
                 logger.info { "Request: $httpMethod $path $headers" }
                 val request = createHttpRequest()
-                //TODO: call handle flow
-                HttpResponse(
-                    HttpStatus.OK,
-                    body = "Hello, world!"
-                )
+                handleDocsFlowRequest(request)
             }.let {
                 APIGatewayProxyResponseEvent()
                     .withStatusCode(it.httpStatusCode.value())
@@ -43,15 +37,14 @@ class DocsFlowFunctions(
     }
 
     @Bean
-    fun processDocument(): Function<S3Event, String> {
+    fun processDocument(reviewAndNotifyDocument: ReviewAndNotifyDocument): Function<S3Event, String> {
         return Function { event ->
             logger.info { "S3 Event received: Processing document" }
             event.records.map { record ->
                 val bucket = record.s3.bucket.name
                 val key = record.s3.`object`.key
                 logger.info { "Document uploaded to bucket: $bucket, key: $key" }
-                //TODO: auto review and notify document
-                "Hello, world!"
+                reviewAndNotifyDocument(key).getOrThrow()
             }.joinToString("\n") { it }
         }
     }
