@@ -1,15 +1,17 @@
-package com.example.clean.architecture.aws.function
+package com.example.clean.architecture.aws
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.example.clean.architecture.model.HttpRequest
+import com.example.clean.architecture.model.HttpResponse
 import com.example.clean.architecture.service.HandleDocsFlowRequest
 import com.example.clean.architecture.service.ReviewAndNotifyDocument
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import java.util.*
 import java.util.function.Function
 
@@ -18,16 +20,16 @@ private val logger = KotlinLogging.logger {}
 
 @Configuration
 class DocsFlowFunctions(
-    private val handleDocsFlowRequest: HandleDocsFlowRequest,
-    private val autoReviewAndNotifyDocument: ReviewAndNotifyDocument
+    val handleDocsFlowRequest: HandleDocsFlowRequest,
+    val reviewAndNotifyDocument: ReviewAndNotifyDocument,
 ) {
     @Bean
     fun uploadDocument(): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
         return Function { event ->
             with(event) {
                 logger.info { "Request: $httpMethod $path $headers" }
-                //TODO: call handle flow
-                handleDocsFlowRequest(createHttpRequest())
+                val request = createHttpRequest()
+                handleDocsFlowRequest(request)
             }.let {
                 APIGatewayProxyResponseEvent()
                     .withStatusCode(it.httpStatusCode.value())
@@ -45,8 +47,7 @@ class DocsFlowFunctions(
                 val bucket = record.s3.bucket.name
                 val key = record.s3.`object`.key
                 logger.info { "Document uploaded to bucket: $bucket, key: $key" }
-                //TODO: auto review and notify document
-                autoReviewAndNotifyDocument(key).getOrThrow()
+                reviewAndNotifyDocument(key).getOrThrow()
             }.joinToString("\n") { it }
         }
     }
