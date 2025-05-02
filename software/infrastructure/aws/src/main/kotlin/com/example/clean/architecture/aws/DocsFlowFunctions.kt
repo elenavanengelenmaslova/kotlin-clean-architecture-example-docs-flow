@@ -20,8 +20,8 @@ private val logger = KotlinLogging.logger {}
 
 @Configuration
 class DocsFlowFunctions(
-    val handleDocsFlowRequest: HandleDocsFlowRequest,
-    val reviewAndNotifyDocument: ReviewAndNotifyDocument,
+    private val handleDocsFlowRequest: HandleDocsFlowRequest,
+    private val reviewAndNotifyDocument: ReviewAndNotifyDocument,
 ) {
     @Bean
     fun uploadDocument(): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {

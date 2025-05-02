@@ -9,10 +9,14 @@ import com.example.clean.architecture.model.HttpResponse
  * submitted via the docs-flow endpoint and storing them in the
  * appropriate storage.
  */
-fun interface HandleDocsFlowRequest: (HttpRequest) -> HttpResponse
+fun interface HandleDocsFlowRequest {
+    operator fun invoke(httpRequest: HttpRequest): HttpResponse
+}
 
 /**
  * Interface for processing a stored document.
  * Accepts a document name and returns the processing result.
  */
-fun interface ReviewAndNotifyDocument : (String) -> Result<String>
+fun interface ReviewAndNotifyDocument {
+    operator fun invoke(id: String): Result<String>
+}

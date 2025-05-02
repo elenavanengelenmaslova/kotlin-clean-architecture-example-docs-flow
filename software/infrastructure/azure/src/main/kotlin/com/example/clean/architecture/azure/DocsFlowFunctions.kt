@@ -17,8 +17,8 @@ private val logger = KotlinLogging.logger {}
 
 @Component
 class DocsFlowFunctions(
-    val handleDocsFlowRequest: HandleDocsFlowRequest,
-    val reviewAndNotifyDocument: ReviewAndNotifyDocument,
+    private val handleDocsFlowRequest: HandleDocsFlowRequest,
+    private val reviewAndNotifyDocument: ReviewAndNotifyDocument,
 ) {
 
     @FunctionName("UploadDocument")
