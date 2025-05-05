@@ -158,11 +158,11 @@ Ensure to run `generateTerraform.sh` after any infra changes in the appropriate 
 
 ## Configure Pipeline
 
-> ⚠️ **Security Notice**  
-> This demo project does **not** use OpenID Connect for simplicity.  
-> If you are deploying to company environments, always follow your organization's security policies and configure GitHub Actions with proper role-based access control.
+If you are using GitHub Actions for deployment, you'll need to configure OIDC: 
+* [OpenID Connect in AWS](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
+* [OpenID Connect in Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure)
 
-If you are using GitHub Actions for deployment, you'll need to configure the following repository secrets:
+Configure the following GitHub repository secrets:
 
 ### AWS Deployment Secrets
 - `AWS_ACCOUNT_ID`: Your AWS account ID
@@ -170,7 +170,7 @@ If you are using GitHub Actions for deployment, you'll need to configure the fol
 
 ### Azure Deployment Secrets
 - `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
-- `AZURE_CLIENT_ID`: Your Azure OIDC client ID
+- `AZURE_OIDC_CLIENT_ID`: Your Azure OIDC client ID
 - `AZURE_TENANT_ID`: Your Azure tenant ID
 - `AZURE_STORAGE_ACCOUNT_NAME`: Your Azure storage account name
 
