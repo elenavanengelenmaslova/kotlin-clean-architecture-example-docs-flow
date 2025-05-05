@@ -37,15 +37,6 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        val azureClientSecretVar = TerraformVariable(
-            this,
-            "AZURE_CLIENT_SECRET",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Azure client secret")
-                .build()
-        )
-
         val azureSubscriptionIdVar = TerraformVariable(
             this,
             "AZURE_SUBSCRIPTION_ID",
@@ -96,7 +87,6 @@ class AzureStack(scope: Construct, id: String) :
             AzurermProviderConfig.builder()
                 .subscriptionId(azureSubscriptionIdVar.stringValue)
                 .clientId(azureClientIdVar.stringValue)
-                .clientSecret(azureClientSecretVar.stringValue)
                 .tenantId(azureTenantIdVar.stringValue)
                 .features(
                     mutableListOf(

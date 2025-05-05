@@ -25,7 +25,6 @@
     "azurerm": [
       {
         "client_id": "${var.AZURE_CLIENT_ID}",
-        "client_secret": "${var.AZURE_CLIENT_SECRET}",
         "features": [
           {
           }
@@ -261,10 +260,6 @@
   "variable": {
     "AZURE_CLIENT_ID": {
       "description": "Azure client ID",
-      "type": "string"
-    },
-    "AZURE_CLIENT_SECRET": {
-      "description": "Azure client secret",
       "type": "string"
     },
     "AZURE_RESOURCE_GROUP_NAME": {
