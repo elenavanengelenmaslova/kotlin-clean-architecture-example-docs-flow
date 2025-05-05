@@ -13,7 +13,6 @@ on:
 jobs:
   call-workflow-build-deploy:
     uses: ./.github/workflows/workflow-build-deploy-aws.yml
-    with:
-      role_name: ${{ secrets.OIDC_ROLE_NAME }}
     secrets:
       aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+      role_name: ${{ secrets.OIDC_ROLE_NAME }}

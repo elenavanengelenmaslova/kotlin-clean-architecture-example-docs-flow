@@ -7,11 +7,10 @@ on:
         required: false
         type: string
         default: "eu-west-1"
-      role_name:
-        required: true
-        type: string
     secrets:
       AWS_ACCOUNT_ID:
+        required: true
+      role_name:
         required: true
 
 env:
