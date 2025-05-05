@@ -19,6 +19,10 @@ env:
   DEPLOY_TARGET_REGION: ${{ inputs.aws_region }}
   BUILD_NO: ${{ github.run_number }}
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     name: Build and package software
