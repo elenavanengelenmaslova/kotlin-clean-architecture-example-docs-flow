@@ -13,10 +13,6 @@ on:
       role_name:
         required: true
 
-permissions:
-  id-token: write
-  contents: read
-
 env:
   # Supply target AWS account here
   TF_VAR_DEPLOY_TARGET_ACCOUNT: ${{ secrets.aws_account_id }}
