@@ -7,12 +7,11 @@ on:
         required: false
         type: string
         default: "eu-west-1"
+      role_name:
+        required: true
+        type: string
     secrets:
       AWS_ACCOUNT_ID:
-        required: true
-      AWS_ACCESS_KEY:
-        required: true
-      AWS_SECRET_KEY:
         required: true
 
 env:
@@ -90,8 +89,7 @@ jobs:
       - name: Configure aws credentials for CDK deployment
         uses: aws-actions/configure-aws-credentials@master
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ inputs.role_name }}
           aws-region: ${{ inputs.aws_region }}
 
       - name: Upload Lambda JAR to S3
