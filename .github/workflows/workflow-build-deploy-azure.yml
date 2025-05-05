@@ -7,6 +7,10 @@ on:
         required: false
         type: string
         default: "West Europe"
+      azure_resource_group:
+        required: false
+        type: string
+        default: "CleanArchitectureRG-WEU"
     secrets:
       azure_subscription_id:
         required: true
@@ -27,7 +31,7 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
   AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
   BUILD_NO: ${{ github.run_number }}
-  AZURE_RESOURCE_GROUP_NAME: "CleanArchitectureRG-WEU"
+  AZURE_RESOURCE_GROUP_NAME: "${{ inputs.azure_resource_group }}
 
 jobs:
   deploy-infra:
