@@ -85,13 +85,8 @@ jobs:
       - name: Hash JAR file before upload
         run: sha256sum build/dist/docs-flow-aws-function.jar
 
-      - name: Debug role-to-assume value
-        run: |
-          echo "Resolved role-to-assume ARN:"
-          echo "arn:aws:iam::${{ secrets.aws_account_id }}:role/${{ secrets.role_name }}"
-
       - name: Configure aws credentials for CDK deployment
-        uses: aws-actions/configure-aws-credentials@master
+        uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           role-to-assume: arn:aws:iam::021259937026:role/GitHubOIDCAdmin
           aws-region: ${{ inputs.aws_region }}
