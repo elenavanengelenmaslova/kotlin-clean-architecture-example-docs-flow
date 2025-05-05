@@ -74,6 +74,8 @@
         "app_settings": {
           "ACS_ENDPOINT": "https://${azurerm_communication_service.DocsFlowACS.hostname}",
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
+          "AzureWebJobsStorage__accountName": "cleanarchitecturesta",
+          "AzureWebJobsStorage__credential": "managedidentity",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "TriggerBlobStorage__accountName": "docsflow",
           "TriggerBlobStorage__credential": "managedidentity",
