@@ -96,7 +96,6 @@
             "java_version": "21"
           }
         },
-        "storage_account_access_key": "${var.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}",
         "storage_account_name": "${var.AZURE_STORAGE_ACCOUNT_NAME}"
       }
     },
@@ -260,10 +259,6 @@
     },
     "AZURE_RESOURCE_GROUP_NAME": {
       "description": "Azure resource group name",
-      "type": "string"
-    },
-    "AZURE_STORAGE_ACCOUNT_ACCESS_KEY": {
-      "description": "Storage account access key",
       "type": "string"
     },
     "AZURE_STORAGE_ACCOUNT_NAME": {

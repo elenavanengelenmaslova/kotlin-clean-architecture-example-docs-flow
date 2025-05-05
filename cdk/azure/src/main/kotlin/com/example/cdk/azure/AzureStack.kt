@@ -177,16 +177,6 @@ class AzureStack(scope: Construct, id: String) :
                 .workspaceId(logAnalyticsWorkspace.id)
                 .build()
         )
-        val storageAccountAccessKeyVar = TerraformVariable(
-            this,
-            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Storage account access key")
-                .build()
-        )
-
-        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
 
         val acsService = CommunicationService(
             this,
@@ -214,9 +204,6 @@ class AzureStack(scope: Construct, id: String) :
                 .location(resourceGroup.location)
                 .servicePlanId(servicePlan.id)
                 .storageAccountName(azureStorageAccountNameVar.stringValue)
-                .storageAccountAccessKey(
-                    storageAccountAccessKey
-                )
                 .siteConfig(
                     LinuxFunctionAppSiteConfig.builder()
                         .applicationStack(

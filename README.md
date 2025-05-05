@@ -166,16 +166,13 @@ If you are using GitHub Actions for deployment, you'll need to configure the fol
 
 ### AWS Deployment Secrets
 - `AWS_ACCOUNT_ID`: Your AWS account ID
-- `AWS_ACCESS_KEY`: Your AWS access key
-- `AWS_SECRET_KEY`: Your AWS secret key
+- `OIDC_ROLE_NAME`: Your OIDC role name
 
 ### Azure Deployment Secrets
 - `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
-- `AZURE_CLIENT_ID`: Your Azure client ID
-- `AZURE_CLIENT_SECRET`: Your Azure client secret
+- `AZURE_CLIENT_ID`: Your Azure OIDC client ID
 - `AZURE_TENANT_ID`: Your Azure tenant ID
 - `AZURE_STORAGE_ACCOUNT_NAME`: Your Azure storage account name
-- `AZURE_STORAGE_ACCOUNT_ACCESS_KEY`: Your Azure storage account access key
 
 ## Testing: Postman Collections and Environment
 The `docs/postman` directory contains Postman collections and an environment file for testing the MockNest API:
