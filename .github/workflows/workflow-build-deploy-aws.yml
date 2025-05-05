@@ -13,15 +13,15 @@ on:
       role_name:
         required: true
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   # Supply target AWS account here
   TF_VAR_DEPLOY_TARGET_ACCOUNT: ${{ secrets.aws_account_id }}
   DEPLOY_TARGET_REGION: ${{ inputs.aws_region }}
   BUILD_NO: ${{ github.run_number }}
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   build:
