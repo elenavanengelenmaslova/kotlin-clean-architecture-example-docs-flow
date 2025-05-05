@@ -10,9 +10,7 @@ on:
     secrets:
       AZURE_SUBSCRIPTION_ID:
         required: true
-      AZURE_CLIENT_ID:
-        required: true
-      AZURE_CLIENT_SECRET:
+      AZURE_OIDC_CLIENT_ID:
         required: true
       AZURE_TENANT_ID:
         required: true
@@ -25,8 +23,7 @@ env:
   DEPLOY_TARGET_REGION: ${{ inputs.azure_region }}
   AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
   TF_VAR_AZURE_STORAGE_ACCOUNT_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_ACCESS_KEY }}
-  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  AZURE_OIDC_CLIENT_ID: ${{ secrets.AZURE_OIDC_CLIENT_ID }}
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   BUILD_NO: ${{ github.run_number }}
@@ -53,16 +50,13 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      - name: Setup Azure CLI
+      - name: Azure Login with OIDC
         uses: azure/login@v1
         with:
-          creds: >
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
-            }
+          client-id: ${{ secrets.AZURE_OIDC_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
 
       - uses: actions/setup-node@v4
         with:
@@ -79,13 +73,11 @@ jobs:
           terraform init -reconfigure \
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
             -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}" \
-            -backend-config="client_id=${AZURE_CLIENT_ID}" \
-            -backend-config="client_secret=${AZURE_CLIENT_SECRET}" \
+            -backend-config="client_id=${AZURE_OIDC_CLIENT_ID}" \
             -backend-config="subscription_id=${AZURE_SUBSCRIPTION_ID}" \
             -backend-config="tenant_id=${AZURE_TENANT_ID}"
           terraform plan \
-            -var="AZURE_CLIENT_ID=${AZURE_CLIENT_ID}" \
-            -var="AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}" \
+            -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
             -var="AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}" \
@@ -108,16 +100,12 @@ jobs:
           java-version: '21'
           distribution: 'adopt'
 
-      - name: Setup Azure CLI
+      - name: Login to Azure with OIDC
         uses: azure/login@v1
         with:
-          creds: >
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
-            }
+          client-id: ${{ secrets.AZURE_OIDC_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - uses: actions/setup-node@v4
         with:
