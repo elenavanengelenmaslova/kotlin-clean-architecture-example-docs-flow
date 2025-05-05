@@ -93,7 +93,7 @@ jobs:
       - name: Configure aws credentials for CDK deployment
         uses: aws-actions/configure-aws-credentials@master
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.aws_account_id }}:role/${{ secrets.role_name }}
+          role-to-assume: arn:aws:iam::021259937026:role/GitHubOIDCAdmin
           aws-region: ${{ inputs.aws_region }}
 
       - name: Upload Lambda JAR to S3
