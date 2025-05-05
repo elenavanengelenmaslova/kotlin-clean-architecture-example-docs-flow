@@ -77,9 +77,6 @@ jobs:
           terraform init -reconfigure \
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
             -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}" \
-            -backend-config="client_id=${azure_oidc_client_id}" \
-            -backend-config="subscription_id=${AZURE_SUBSCRIPTION_ID}" \
-            -backend-config="tenant_id=${AZURE_TENANT_ID}"
           terraform plan \
             -var="AZURE_CLIENT_ID=${azure_oidc_client_id}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
