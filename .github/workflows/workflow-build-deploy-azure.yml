@@ -82,7 +82,7 @@ jobs:
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
             -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}" 
           terraform plan \
-            -var="AZURE_CLIENT_ID=${azure_oidc_client_id}" \
+            -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
             -var="AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}" \
