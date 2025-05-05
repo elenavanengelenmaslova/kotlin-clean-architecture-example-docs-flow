@@ -105,7 +105,6 @@ class AzureStack(scope: Construct, id: String) :
                 .containerName("cleanarchterraformstorage")
                 .key("docs-flow-kscfunction/terraform.tfstate")
                 .clientId("\${client_id}")
-                .clientSecret("\${client_secret}")
                 .subscriptionId("\${subscription_id}")
                 .tenantId("\${tenant_id}")
                 .build()
