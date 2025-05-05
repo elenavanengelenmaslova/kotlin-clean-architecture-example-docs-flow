@@ -104,9 +104,6 @@ class AzureStack(scope: Construct, id: String) :
                 .storageAccountName("\${storage_account_name}")
                 .containerName("cleanarchterraformstorage")
                 .key("docs-flow-kscfunction/terraform.tfstate")
-                .clientId("\${client_id}")
-                .subscriptionId("\${subscription_id}")
-                .tenantId("\${tenant_id}")
                 .build()
         )
         // Reference the existing Resource Group

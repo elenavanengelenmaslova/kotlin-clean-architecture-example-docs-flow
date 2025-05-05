@@ -240,13 +240,10 @@
   "terraform": {
     "backend": {
       "azurerm": {
-        "client_id": "${client_id}",
         "container_name": "cleanarchterraformstorage",
         "key": "docs-flow-kscfunction/terraform.tfstate",
         "resource_group_name": "${resource_group_name}",
-        "storage_account_name": "${storage_account_name}",
-        "subscription_id": "${subscription_id}",
-        "tenant_id": "${tenant_id}"
+        "storage_account_name": "${storage_account_name}"
       }
     },
     "required_providers": {
