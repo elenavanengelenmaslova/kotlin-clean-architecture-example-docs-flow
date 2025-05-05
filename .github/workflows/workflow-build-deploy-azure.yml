@@ -32,6 +32,10 @@ env:
   AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
   BUILD_NO: ${{ github.run_number }}
   AZURE_RESOURCE_GROUP_NAME: ${{ inputs.azure_resource_group }}
+  ARM_CLIENT_ID: ${{ secrets.azure_oidc_client_id }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
+  ARM_TENANT_ID: ${{ secrets.azure_tenant_id }}
+  ARM_USE_OIDC: true
 
 jobs:
   deploy-infra:
