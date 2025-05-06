@@ -151,8 +151,8 @@ If you plan to deploy the infrastructure, you may need to update the following:
 - Update the Azure resource group name (default is "DefaultResourceGroup-WEU")
 - Update the Azure region if needed (default is "West Europe")
 - Update the Azure data location if needed (default is "Europe")
-- The storage account for MockNest is set to "demomocknest" (this storage account must exist before deployment)
-- The storage container for Terraform state is set to "vintikterraformstorage" (this container must exist in the storage account before deployment)
+- The storage account for DocsFlow is set to "docsflow" (this storage account must exist before deployment)
+- The storage container for Terraform state is set to "cleanarchitecturesta" (this container must exist in the storage account before deployment)
 
 Ensure to run `generateTerraform.sh` after any infra changes in the appropriate cdk module (aws or azure) to regenerate terraform configuration.
 
@@ -173,6 +173,12 @@ Configure the following GitHub repository secrets:
 - `AZURE_OIDC_CLIENT_ID`: Your Azure OIDC client ID
 - `AZURE_TENANT_ID`: Your Azure tenant ID
 - `AZURE_STORAGE_ACCOUNT_NAME`: Your Azure storage account name
+- `AZURE_STORAGE_ACCOUNT_ACCESS_KEY`: Your Azure storage account access key for storage account that supports the Azure Function app deployment and operation (in this example it is called `cleanarchitecturesta`)
+
+### Azure Gradle Plugin
+The Azure Gradle plugin (com.microsoft.azure.azurefunctions) used for deploying Azure Functions requires a storage account access key and does not support managed identity authentication yet. This is why you need to provide the `AZURE_STORAGE_ACCOUNT_ACCESS_KEY` as a secret in your GitHub repository for the deployment workflow to function properly.
+
+**Note** that this storage account, e.g. `cleanarchitecturesta`,  is specifically used to support the Azure Function app deployment and operation. The application also uses a separate storage account for its core functionality (document storage - `docsflow`).
 
 ## Testing: Postman Collections and Environment
 The `docs/postman` directory contains Postman collections and an environment file for testing the MockNest API:
