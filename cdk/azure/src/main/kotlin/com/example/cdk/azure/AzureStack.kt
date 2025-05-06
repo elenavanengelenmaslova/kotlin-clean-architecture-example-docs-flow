@@ -37,15 +37,6 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        val azureClientSecretVar = TerraformVariable(
-            this,
-            "AZURE_CLIENT_SECRET",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Azure client secret")
-                .build()
-        )
-
         val azureSubscriptionIdVar = TerraformVariable(
             this,
             "AZURE_SUBSCRIPTION_ID",
@@ -73,6 +64,17 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+        val storageAccountAccessKeyVar = TerraformVariable(
+            this,
+            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("Storage account access key")
+                .build()
+        )
+
+        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
+
         val azureResourceGroupNameVar = TerraformVariable(
             this,
             "AZURE_RESOURCE_GROUP_NAME",
@@ -96,7 +98,6 @@ class AzureStack(scope: Construct, id: String) :
             AzurermProviderConfig.builder()
                 .subscriptionId(azureSubscriptionIdVar.stringValue)
                 .clientId(azureClientIdVar.stringValue)
-                .clientSecret(azureClientSecretVar.stringValue)
                 .tenantId(azureTenantIdVar.stringValue)
                 .features(
                     mutableListOf(
@@ -114,10 +115,6 @@ class AzureStack(scope: Construct, id: String) :
                 .storageAccountName("\${storage_account_name}")
                 .containerName("cleanarchterraformstorage")
                 .key("docs-flow-kscfunction/terraform.tfstate")
-                .clientId("\${client_id}")
-                .clientSecret("\${client_secret}")
-                .subscriptionId("\${subscription_id}")
-                .tenantId("\${tenant_id}")
                 .build()
         )
         // Reference the existing Resource Group
@@ -191,16 +188,6 @@ class AzureStack(scope: Construct, id: String) :
                 .workspaceId(logAnalyticsWorkspace.id)
                 .build()
         )
-        val storageAccountAccessKeyVar = TerraformVariable(
-            this,
-            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Storage account access key")
-                .build()
-        )
-
-        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
 
         val acsService = CommunicationService(
             this,
@@ -211,6 +198,7 @@ class AzureStack(scope: Construct, id: String) :
                 .dataLocation("Europe")
                 .build()
         )
+
 
         // Create the Function App
         val functionApp = LinuxFunctionApp(

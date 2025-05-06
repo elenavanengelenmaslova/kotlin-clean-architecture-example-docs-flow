@@ -25,7 +25,6 @@
     "azurerm": [
       {
         "client_id": "${var.AZURE_CLIENT_ID}",
-        "client_secret": "${var.AZURE_CLIENT_SECRET}",
         "features": [
           {
           }
@@ -241,14 +240,10 @@
   "terraform": {
     "backend": {
       "azurerm": {
-        "client_id": "${client_id}",
-        "client_secret": "${client_secret}",
         "container_name": "cleanarchterraformstorage",
         "key": "docs-flow-kscfunction/terraform.tfstate",
         "resource_group_name": "${resource_group_name}",
-        "storage_account_name": "${storage_account_name}",
-        "subscription_id": "${subscription_id}",
-        "tenant_id": "${tenant_id}"
+        "storage_account_name": "${storage_account_name}"
       }
     },
     "required_providers": {
@@ -261,10 +256,6 @@
   "variable": {
     "AZURE_CLIENT_ID": {
       "description": "Azure client ID",
-      "type": "string"
-    },
-    "AZURE_CLIENT_SECRET": {
-      "description": "Azure client secret",
       "type": "string"
     },
     "AZURE_RESOURCE_GROUP_NAME": {

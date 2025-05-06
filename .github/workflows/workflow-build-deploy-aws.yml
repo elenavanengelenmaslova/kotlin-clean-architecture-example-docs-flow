@@ -8,16 +8,14 @@ on:
         type: string
         default: "eu-west-1"
     secrets:
-      AWS_ACCOUNT_ID:
+      aws_account_id:
         required: true
-      AWS_ACCESS_KEY:
-        required: true
-      AWS_SECRET_KEY:
+      role_name:
         required: true
 
 env:
   # Supply target AWS account here
-  TF_VAR_DEPLOY_TARGET_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+  TF_VAR_DEPLOY_TARGET_ACCOUNT: ${{ secrets.aws_account_id }}
   DEPLOY_TARGET_REGION: ${{ inputs.aws_region }}
   BUILD_NO: ${{ github.run_number }}
 
@@ -88,10 +86,9 @@ jobs:
         run: sha256sum build/dist/docs-flow-aws-function.jar
 
       - name: Configure aws credentials for CDK deployment
-        uses: aws-actions/configure-aws-credentials@master
+        uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          role-to-assume: arn:aws:iam::021259937026:role/GitHubOIDCAdmin
           aws-region: ${{ inputs.aws_region }}
 
       - name: Upload Lambda JAR to S3

@@ -10,10 +10,13 @@ on:
       - ".github/workflows/**-azure.yml"
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   call-workflow-build-deploy:
     uses: ./.github/workflows/workflow-build-deploy-aws.yml
     secrets:
       aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
-      aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
-      aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
+      role_name: ${{ secrets.OIDC_ROLE_NAME }}

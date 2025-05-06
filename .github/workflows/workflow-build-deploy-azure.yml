@@ -7,14 +7,16 @@ on:
         required: false
         type: string
         default: "West Europe"
+      azure_resource_group:
+        required: false
+        type: string
+        default: "CleanArchitectureRG-WEU"
     secrets:
-      AZURE_SUBSCRIPTION_ID:
+      azure_subscription_id:
         required: true
-      AZURE_CLIENT_ID:
+      azure_oidc_client_id:
         required: true
-      AZURE_CLIENT_SECRET:
-        required: true
-      AZURE_TENANT_ID:
+      azure_tenant_id:
         required: true
       AZURE_STORAGE_ACCOUNT_NAME:
         required: true
@@ -25,12 +27,15 @@ env:
   DEPLOY_TARGET_REGION: ${{ inputs.azure_region }}
   AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
   TF_VAR_AZURE_STORAGE_ACCOUNT_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_ACCESS_KEY }}
-  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_OIDC_CLIENT_ID: ${{ secrets.azure_oidc_client_id }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
+  AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
   BUILD_NO: ${{ github.run_number }}
-  AZURE_RESOURCE_GROUP_NAME: "CleanArchitectureRG-WEU"
+  AZURE_RESOURCE_GROUP_NAME: ${{ inputs.azure_resource_group }}
+  ARM_CLIENT_ID: ${{ secrets.azure_oidc_client_id }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
+  ARM_TENANT_ID: ${{ secrets.azure_tenant_id }}
+  ARM_USE_OIDC: true
 
 jobs:
   deploy-infra:
@@ -53,16 +58,13 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      - name: Setup Azure CLI
+      - name: Azure Login with OIDC
         uses: azure/login@v1
         with:
-          creds: >
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
-            }
+          client-id: ${{ secrets.azure_oidc_client_id }}
+          tenant-id: ${{ secrets.azure_tenant_id }}
+          subscription-id: ${{ secrets.azure_subscription_id }}
+
 
       - uses: actions/setup-node@v4
         with:
@@ -78,14 +80,9 @@ jobs:
           cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${{ matrix.config.stack-name }}
           terraform init -reconfigure \
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
-            -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}" \
-            -backend-config="client_id=${AZURE_CLIENT_ID}" \
-            -backend-config="client_secret=${AZURE_CLIENT_SECRET}" \
-            -backend-config="subscription_id=${AZURE_SUBSCRIPTION_ID}" \
-            -backend-config="tenant_id=${AZURE_TENANT_ID}"
+            -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}" 
           terraform plan \
-            -var="AZURE_CLIENT_ID=${AZURE_CLIENT_ID}" \
-            -var="AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}" \
+            -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
             -var="AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}" \
@@ -108,16 +105,12 @@ jobs:
           java-version: '21'
           distribution: 'adopt'
 
-      - name: Setup Azure CLI
+      - name: Login to Azure with OIDC
         uses: azure/login@v1
         with:
-          creds: >
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
-            }
+          client-id: ${{ secrets.azure_oidc_client_id }}
+          tenant-id: ${{ secrets.azure_tenant_id }}
+          subscription-id: ${{ secrets.azure_subscription_id }}
 
       - uses: actions/setup-node@v4
         with:
