@@ -64,6 +64,17 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+        val storageAccountAccessKeyVar = TerraformVariable(
+            this,
+            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("Storage account access key")
+                .build()
+        )
+
+        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
+
         val azureResourceGroupNameVar = TerraformVariable(
             this,
             "AZURE_RESOURCE_GROUP_NAME",
@@ -188,6 +199,7 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+
         // Create the Function App
         val functionApp = LinuxFunctionApp(
             this, "DocsFlowSpringCloudFunctionApp",
@@ -204,6 +216,9 @@ class AzureStack(scope: Construct, id: String) :
                 .location(resourceGroup.location)
                 .servicePlanId(servicePlan.id)
                 .storageAccountName(azureStorageAccountNameVar.stringValue)
+                .storageAccountAccessKey(
+                    storageAccountAccessKey
+                )
                 .siteConfig(
                     LinuxFunctionAppSiteConfig.builder()
                         .applicationStack(
