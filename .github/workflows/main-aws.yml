@@ -7,8 +7,7 @@ on:
       - 'docs/**'
       - 'cdk/azure/**'
       - 'software/infrastructure/azure/**'
-      - ./.github/workflows/feature-azure.yml
-      - ./.github/workflows/workflow-build-deploy-azure.yml
+      - ".github/workflows/**-azure.yml"
   workflow_dispatch:
 
 permissions:
