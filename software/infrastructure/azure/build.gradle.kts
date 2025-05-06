@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("org.springframework.boot")
-    id("com.microsoft.azure.azurefunctions") version "1.16.1"
+    id("com.microsoft.azure.azurefunctions") version "1.15.0"
     kotlin("plugin.spring")
 }
 
