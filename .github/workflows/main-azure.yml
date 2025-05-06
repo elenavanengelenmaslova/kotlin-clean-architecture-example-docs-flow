@@ -11,6 +11,10 @@ on:
       - ./.github/workflows/workflow-build-deploy-aws.yml
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   call-workflow-build-deploy:
     uses: ./.github/workflows/workflow-build-deploy-azure.yml
