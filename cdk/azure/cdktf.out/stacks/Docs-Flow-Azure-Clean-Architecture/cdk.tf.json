@@ -74,8 +74,6 @@
         "app_settings": {
           "ACS_ENDPOINT": "https://${azurerm_communication_service.DocsFlowACS.hostname}",
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
-          "AzureWebJobsStorage__accountName": "cleanarchitecturesta",
-          "AzureWebJobsStorage__credential": "managedidentity",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "TriggerBlobStorage__accountName": "docsflow",
           "TriggerBlobStorage__credential": "managedidentity",
@@ -98,6 +96,7 @@
             "java_version": "21"
           }
         },
+        "storage_account_access_key": "${var.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}",
         "storage_account_name": "${var.AZURE_STORAGE_ACCOUNT_NAME}"
       }
     },
@@ -261,6 +260,10 @@
     },
     "AZURE_RESOURCE_GROUP_NAME": {
       "description": "Azure resource group name",
+      "type": "string"
+    },
+    "AZURE_STORAGE_ACCOUNT_ACCESS_KEY": {
+      "description": "Storage account access key",
       "type": "string"
     },
     "AZURE_STORAGE_ACCOUNT_NAME": {
