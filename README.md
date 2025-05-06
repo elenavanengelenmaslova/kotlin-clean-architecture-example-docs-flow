@@ -1,47 +1,6 @@
-# Getting Started
+# Clean Architecture
 
-## API Endpoints
-
-### docs-flow
-- **Endpoint**: `/docs-flow`
-- **Method**: POST
-- **Description**: Accepts Word documents and stores them in blob storage (Azure) or S3 (AWS)
-- **Request Body**: Word document content
-- **Response**: JSON with document ID and URL
-  ```json
-  {
-    "id": "document-uuid",
-    "url": "storage-url"
-  }
-  ```
-
-## Use cases
-![SolutionDesign.png](docs/UseCases.png)
-```plantuml
-
-@startuml
-
-actor "Writer" as Writer
-actor "Reviewer" as Reviewer
-
-rectangle "Document Review System" {
-  (Upload Document) as Upload
-  (Analyze Document) as Analyze
-  (Send Email to Reviewer) as SendEmail
-  (Access Document with Token) as AccessLink
-}
-
-Writer --> Upload
-Upload --> Analyze
-Analyze --> SendEmail
-SendEmail --> Reviewer
-Reviewer --> AccessLink
-
-@enduml
-```
-
-# Solution Architecture
-![SolutionDesign.png](docs/SolutionDesign.png)
+![CleanArchitecture.png](docs/CleanArchitecture.png)
 
 # Project Structure
 
@@ -97,6 +56,56 @@ kotlin-clean-architecture-example-docs-flow/
         └──generateTerraform.sh  // Generates terraform json from CDK, run when infrastructure changes
 
 ```
+
+# Docs Flow
+
+## Use cases
+![SolutionDesign.png](docs/UseCases.png)
+```plantuml
+
+@startuml
+
+actor "Writer" as Writer
+actor "Reviewer" as Reviewer
+
+rectangle "Document Review System" {
+  (Upload Document) as Upload
+  (Analyze Document) as Analyze
+  (Send Email to Reviewer) as SendEmail
+  (Access Document with Token) as AccessLink
+}
+
+Writer --> Upload
+Upload --> Analyze
+Analyze --> SendEmail
+SendEmail --> Reviewer
+Reviewer --> AccessLink
+
+@enduml
+```
+
+## API Endpoints
+
+### docs-flow
+- **Endpoint**: `/docs-flow`
+- **Method**: POST
+- **Description**: Accepts Word documents and stores them in blob storage (Azure) or S3 (AWS)
+- **Request Body**: Word document content
+- **Response**: JSON with document ID and URL
+  ```json
+  {
+    "id": "document-uuid",
+    "url": "storage-url"
+  }
+  ```
+
+# Solution Architecture
+![SolutionDesign.png](docs/SolutionDesign.png)
+
+# Spring Cloud Function
+
+![SpringCloudFunction.png](docs/SpringCloudFunction.png)
+
 # Getting Started
 ## Prerequisites
 Before you begin, ensure you have the following:
@@ -215,7 +224,7 @@ Before using the collections, you need to configure the environment variables:
 
 ## Questions or Issues
 If you have questions or encounter issues, please log them in the repository's issue tracker:
-[https://github.com/elenavanengelenmaslova/kotlin-spring-cloud-function-clean-architecture-demo/issues](https://github.com/elenavanengelenmaslova/kotlin-spring-cloud-function-clean-architecture-demo/issues)
+[https://github.com/elenavanengelenmaslova/kotlin-clean-architecture-example-docs-flow/issues](https://github.com/elenavanengelenmaslova/kotlin-clean-architecture-example-docs-flow/issues)
 
 ## Reference Documentation
 
