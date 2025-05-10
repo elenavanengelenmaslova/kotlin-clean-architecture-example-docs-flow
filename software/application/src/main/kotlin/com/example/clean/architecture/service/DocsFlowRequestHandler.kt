@@ -24,11 +24,12 @@ class DocsFlowRequestHandler(
 
         // Check if body is present
         val body = httpRequest.body
-        if (body == null) {
-            logger.warn { "No document provided in request body" }
+        if (body == null || !isDocumentValid()) {
+            val errorMessage = "No document provided in request body or invalid document"
+            logger.warn { errorMessage }
             return HttpResponse(
                 HttpStatusCode.valueOf(400),
-                body = "No document provided in request body"
+                body = errorMessage
             )
         }
 
@@ -58,4 +59,9 @@ class DocsFlowRequestHandler(
             )
         }
     }
+
+    /**
+     * This is business logic, like validation of the submitted document.
+     */
+    private fun isDocumentValid(): Boolean = true
 }
