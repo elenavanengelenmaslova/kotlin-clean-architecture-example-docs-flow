@@ -1,13 +1,13 @@
 name: AWS Lambda infra CI/CD Main
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'cdk/azure/**'
-      - 'software/infrastructure/azure/**'
-      - ".github/workflows/**-azure.yml"
+#  push:
+#    branches: [ main ]
+#    paths-ignore:
+#      - '**.md'
+#      - 'docs/**'
+#      - 'cdk/azure/**'
+#      - 'software/infrastructure/azure/**'
+#      - ".github/workflows/**-azure.yml"
   workflow_dispatch:
 
 permissions:
