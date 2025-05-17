@@ -1,5 +1,7 @@
 # Clean Architecture
 
+## Read the full article about Clean Architecture for Serverless [here](https://medium.com/nntech/keeping-business-logic-portable-in-serverless-functions-with-clean-architecture-bd1976276562).
+
 ![CleanArchitecture.png](docs/CleanArchitecture.png)
 
 # Project Structure
