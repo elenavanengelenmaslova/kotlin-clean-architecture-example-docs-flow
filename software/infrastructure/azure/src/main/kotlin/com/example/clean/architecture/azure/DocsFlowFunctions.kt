@@ -17,8 +17,7 @@ private val logger = KotlinLogging.logger {}
 
 @Component
 class DocsFlowFunctions(
-    private val handleDocsFlowRequest: HandleDocsFlowRequest,
-    private val reviewAndNotifyDocument: ReviewAndNotifyDocument,
+    //TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument
 ) {
 
     @FunctionName("UploadDocument")
@@ -40,7 +39,11 @@ class DocsFlowFunctions(
             originalRequest.queryParameters,
             originalRequest.body
         )
-        val response = handleDocsFlowRequest(request)
+        // TODO: handle docs-flow request
+        val response = HttpResponse(
+            org.springframework.http.HttpStatus.OK,
+            body = "Hello, world!"
+        )
         return buildResponse(originalRequest, response)
     }
 
@@ -74,7 +77,8 @@ class DocsFlowFunctions(
         context: ExecutionContext
     ) {
         logger.info { "Document name: $name, size: ${content.size}" }
-        val result = reviewAndNotifyDocument(name)
+        //TODO: review and notify document
+        val result = Result.success("Hello, world!")
         logger.info { "Processed document from blob storage: ${result.getOrNull()}" }
     }
 
