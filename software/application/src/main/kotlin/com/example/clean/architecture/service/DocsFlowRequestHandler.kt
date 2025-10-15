@@ -25,7 +25,7 @@ class DocsFlowRequestHandler(
         // Check if body is present
         val body = httpRequest.body
         if (body == null || !isDocumentValid()) {
-            val errorMessage = "No document provided in request body or invalid document"
+            val errorMessage = "No document provided in request body or invalid document."
             logger.warn { errorMessage }
             return HttpResponse(
                 HttpStatusCode.valueOf(400),
