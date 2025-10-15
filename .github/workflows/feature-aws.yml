@@ -1,7 +1,7 @@
 name: AWS Lambda infra CI/CD Feature
 on:
   push:
-    branches: [ feature/* ]
+    branches: [ xfeature/* ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
