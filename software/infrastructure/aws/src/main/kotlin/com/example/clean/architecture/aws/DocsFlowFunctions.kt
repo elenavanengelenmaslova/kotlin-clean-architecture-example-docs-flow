@@ -20,7 +20,7 @@ private val logger = KotlinLogging.logger {}
 
 @Configuration
 class DocsFlowFunctions(
-    //TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument
+    // TODO: inject handleDocsFlowRequest and reviewAndNotifyDocument
 ) {
     @Bean
     fun uploadDocument(): Function<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
@@ -28,7 +28,7 @@ class DocsFlowFunctions(
             with(event) {
                 logger.info { "Request: $httpMethod $path $headers" }
                 val request = createHttpRequest()
-                //TODO: call handle flow
+                // TODO: call handle flow
                 HttpResponse(
                     HttpStatus.OK,
                     body = "Hello, world!"
