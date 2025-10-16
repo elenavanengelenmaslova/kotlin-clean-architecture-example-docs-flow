@@ -1,5 +1,8 @@
 package com.example.clean.architecture.persistence
 
+/**
+ * Interface for object storage
+ */
 interface ObjectStorageInterface {
     fun save(id: String, content: ByteArray): String
     /**
