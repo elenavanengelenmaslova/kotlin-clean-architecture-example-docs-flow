@@ -9,16 +9,16 @@ private val logger = KotlinLogging.logger {}
 
 @Service
 class AutoDocumentReviewer(
-    // TODO: Inject objectStorage and notification
+    private val objectStorage: ObjectStorageInterface,
+    private val notification: DocumentNotificationInterface
 ) : ReviewAndNotifyDocument {
 
     override fun invoke(blobId: String): Result<String> = runCatching {
-        // TODO: generate secure access URI
-        val linkToDocument = "Hello World"
+        val linkToDocument = objectStorage.generateSecureAccessUri(blobId)
 
         val review = "${someVeryComplexReviewBusinessLogic()}\n Download at: $linkToDocument"
         logger.info { "Generated review: $review, sending email..." }
-        // TODO: send email
+        notification.sendEmail(review)
         review
     }.onFailure { logger.error(it) { "Failed to generate and send a review: ${it.message}" } }
 
