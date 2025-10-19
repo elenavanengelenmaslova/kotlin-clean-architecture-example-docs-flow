@@ -192,7 +192,37 @@ The Azure Gradle plugin (com.microsoft.azure.azurefunctions) used for deploying 
 **Note** that this storage account, e.g. `cleanarchitecturesta`,  is specifically used to support the Azure Function app deployment and operation. The application also uses a separate storage account for its core functionality (document storage - `docsflow`).
 
 ## Testing: Postman Collections and Environment
-The `docs/postman` directory contains Postman collections and an environment file for testing the DocsFlow API: TODO
+The `docs/postman` directory contains Postman collections and an environment file for testing the MockNest API:
+
+### Collections
+- **AWS MockNest Conf Demo.postman_collection.json**: Collection for testing the MockNest API deployed on AWS
+- **Azure MockNest Conf Demo.postman_collection.json**: Collection for testing the MockNest API deployed on Azure
+- **Health Checks.postman_collection.json**: Collection for running both AWS and Azure health checks
+
+AWS and Azure collections contain requests for:
+- Creating mock API endpoints
+- Testing mock endpoints
+- Resetting mappings
+- Viewing near misses (requests that almost matched a mapping)
+- Checking the health of the service
+- Deleting mappings
+
+Health Check collection is a shortcut to run all health checks at once.
+
+### Environment
+- **Demo Example.postman_environment.json**: Contains environment variables used by both collections
+
+#### Environment Configuration
+Before using the collections, you need to configure the environment variables:
+
+**For AWS deployment:**
+- `AWS_URL`: Set to your AWS API Gateway endpoint
+- `api_key`: Set to your AWS API Gateway API key
+
+**For Azure deployment:**
+- `AZURE_URL`: Set to your Azure Function App endpoint
+- `admin_function_key`: Set to your Azure Function admin key (for admin operations)
+- `client_function_key`: Set to your Azure Function mocknest key (for client operations)
 
 ## Questions or Issues
 If you have questions or encounter issues, please log them in the repository's issue tracker:
@@ -213,3 +243,9 @@ These additional references should also help you:
 
 * [Gradle Build Scans – insights for your project's build](https://scans.gradle.com#gradle)
 * [Various sample apps using Spring Cloud Function](https://github.com/spring-cloud/spring-cloud-function/tree/main/spring-cloud-function-samples)
+
+## Support this project
+If this project saved you time, consider buying me a [coffee ☕](https://buymeacoffee.com/elenavanengelen) to help keep it up to date and maintained.
+
+[![Buy Me a Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/elenavanengelen)
+
