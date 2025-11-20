@@ -1,5 +1,7 @@
 # Clean Architecture
 
+## Read the full article about Clean Architecture for Serverless [here](https://medium.com/nntech/keeping-business-logic-portable-in-serverless-functions-with-clean-architecture-bd1976276562).
+
 ![CleanArchitecture.png](docs/CleanArchitecture.png)
 
 # Project Structure
@@ -60,7 +62,7 @@ kotlin-clean-architecture-example-docs-flow/
 # Docs Flow
 
 ## Use cases
-![SolutionDesign.png](docs/UseCases.png)
+![UseCases.png](docs/UseCases.png)
 ```plantuml
 
 @startuml
@@ -241,3 +243,9 @@ These additional references should also help you:
 
 * [Gradle Build Scans – insights for your project's build](https://scans.gradle.com#gradle)
 * [Various sample apps using Spring Cloud Function](https://github.com/spring-cloud/spring-cloud-function/tree/main/spring-cloud-function-samples)
+
+## Support this project
+If this project saved you time, consider buying me a [coffee ☕](https://buymeacoffee.com/elenavanengelen) to help keep it up to date and maintained.
+
+[![Buy Me a Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/elenavanengelen)
+
