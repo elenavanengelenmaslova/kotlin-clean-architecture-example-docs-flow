@@ -236,6 +236,9 @@ class AzureStack(scope: Construct, id: String) :
                 .appSettings(
                     mapOf(
                         "APPINSIGHTS_INSTRUMENTATIONKEY" to appInsights.instrumentationKey,
+                        "APPLICATIONINSIGHTS_ENABLE_AGENT" to "true",
+                        "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL" to "INFO",
+                        "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL" to "ERROR",
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         "TriggerBlobStorage__accountName" to "docsflow",
                         "TriggerBlobStorage__credential" to "managedidentity",

@@ -74,6 +74,9 @@
         "app_settings": {
           "ACS_ENDPOINT": "https://${azurerm_communication_service.DocsFlowACS.hostname}",
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
+          "APPLICATIONINSIGHTS_ENABLE_AGENT": "true",
+          "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL": "INFO",
+          "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL": "ERROR",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "TriggerBlobStorage__accountName": "docsflow",
           "TriggerBlobStorage__credential": "managedidentity",
