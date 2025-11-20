@@ -1,13 +1,13 @@
 name: Azure function infra CI/CD Main
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'cdk/aws/**'
-      - 'software/infrastructure/aws/**'
-      - ".github/workflows/**-aws.yml"
+#  push:
+#    branches: [ main ]
+#    paths-ignore:
+#      - '**.md'
+#      - 'docs/**'
+#      - 'cdk/aws/**'
+#      - 'software/infrastructure/aws/**'
+#      - ".github/workflows/**-aws.yml"
   workflow_dispatch:
 
 permissions:
