@@ -8,8 +8,8 @@ This implementation plan deploys changes in three sequential checkpoints, each v
 
 - [x] 1. Configure email addresses and implement health check in application layer
   - [x] 1.1 Replace hardcoded email defaults in application.properties
-    - Remove `REPLACEME` default values from `software/infrastructure/aws/src/main/resources/application.properties` for `aws.ses.sender-email` and `aws.ses.recipient-email` — use `${SENDER_EMAIL}` and `${RECIPIENT_EMAIL}` without defaults
-    - Remove `REPLACEME` default values from `software/infrastructure/azure/src/main/resources/application.properties` for `azure.acs.sender-email` and `azure.acs.recipient-email` — use `${SENDER_EMAIL}` and `${RECIPIENT_EMAIL}` without defaults
+    - Remove `REPLACEME` default values from `software/infrastructure/aws/src/main/resources/application.properties` for `aws.ses.sender-email` and `aws.ses.recipient-email` — use `${AWS_SENDER_EMAIL}` and `${RECIPIENT_EMAIL}` without defaults
+    - Remove `REPLACEME` default values from `software/infrastructure/azure/src/main/resources/application.properties` for `azure.acs.sender-email` and `azure.acs.recipient-email` — use `${AZURE_SENDER_EMAIL}` and `${RECIPIENT_EMAIL}` without defaults
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
   - [x] 1.2 Implement HealthCheckFunction bean in the application layer
@@ -32,7 +32,7 @@ This implementation plan deploys changes in three sequential checkpoints, each v
     - Add a new Lambda function resource with `SPRING_CLOUD_FUNCTION_DEFINITION` set to `healthCheck`
     - Add API Gateway resource at `/health` with GET method and API key required
     - Add Terraform outputs for `api_gateway_url` and `api_key_name`
-    - Pass `SENDER_EMAIL` and `RECIPIENT_EMAIL` as Lambda environment variables from Terraform variables
+    - Pass `AWS_SENDER_EMAIL` and `RECIPIENT_EMAIL` as Lambda environment variables from Terraform variables
     - Run `generateTerraform.sh` to regenerate Terraform JSON
     - _Requirements: 1.6, 2.3, 2.4, 2.5_
 
@@ -51,7 +51,7 @@ This implementation plan deploys changes in three sequential checkpoints, each v
 
   - [x] 3.2 Add email environment variables to Azure CDK stack
     - Modify `cdk/azure/src/main/kotlin/com/example/cdk/azure/AzureStack.kt`
-    - Pass `SENDER_EMAIL` and `RECIPIENT_EMAIL` as function app application settings from Terraform variables
+    - Pass `AZURE_SENDER_EMAIL` and `RECIPIENT_EMAIL` as function app application settings from Terraform variables
     - Add Terraform outputs for `function_app_name` and `resource_group_name`
     - Run `generateTerraform.sh` to regenerate Terraform JSON
     - _Requirements: 1.7, 1.8_
@@ -82,13 +82,13 @@ This implementation plan deploys changes in three sequential checkpoints, each v
   - [ ] 6.1 Restructure AWS reusable workflow into checkpoint jobs
     - Refactor `workflow-build-deploy-aws.yml` to have a `checkpoint-1` job that includes build, deploy-infra, deploy-app, and health check
     - Add `checkpoint-2` and `checkpoint-3` job stubs with `needs: [checkpoint-1]` and `needs: [checkpoint-2]` respectively
-    - Ensure `SENDER_EMAIL` and `RECIPIENT_EMAIL` secrets are passed as Terraform variables and Lambda environment variables
+    - Ensure `AWS_SENDER_EMAIL` and `RECIPIENT_EMAIL` secrets are passed as Terraform variables and Lambda environment variables
     - _Requirements: 1.8, 11.1, 11.4, 11.5_
 
   - [ ] 6.2 Restructure Azure reusable workflow into checkpoint jobs
     - Refactor `workflow-build-deploy-azure.yml` to have a `checkpoint-1` job that includes deploy-infra, deploy-app, and health check
     - Add `checkpoint-2` and `checkpoint-3` job stubs with `needs: [checkpoint-1]` and `needs: [checkpoint-2]` respectively
-    - Ensure `SENDER_EMAIL` and `RECIPIENT_EMAIL` secrets are passed as Terraform variables and app settings
+    - Ensure `AZURE_SENDER_EMAIL` and `RECIPIENT_EMAIL` secrets are passed as Terraform variables and app settings
     - _Requirements: 1.8, 11.1, 11.4, 11.5_
 
 - [ ] 7. Checkpoint 1 — Ensure all tests pass

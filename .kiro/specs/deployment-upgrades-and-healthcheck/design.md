@@ -312,8 +312,9 @@ The CDK stacks will export outputs needed by the pipeline health check steps:
 
 | Variable | Source | Used By |
 |----------|--------|---------|
-| `SENDER_EMAIL` | GitHub Secret | AWS Lambda env var, Azure app setting |
-| `RECIPIENT_EMAIL` | GitHub Secret | AWS Lambda env var, Azure app setting |
+| `AWS_SENDER_EMAIL` | GitHub Secret | AWS Lambda env var (SES sender) |
+| `AZURE_SENDER_EMAIL` | GitHub Secret | Azure app setting (ACS sender) |
+| `RECIPIENT_EMAIL` | GitHub Secret | AWS Lambda env var, Azure app setting (shared) |
 | `API_URL` | Terraform output + runtime | AWS health check step |
 | `API_KEY` | AWS CLI at runtime | AWS health check step |
 | `FUNC_URL` | Azure CLI at runtime | Azure health check step |

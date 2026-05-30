@@ -86,7 +86,7 @@ class AzureStack(scope: Construct, id: String) :
 
         val senderEmailVar = TerraformVariable(
             this,
-            "SENDER_EMAIL",
+            "AZURE_SENDER_EMAIL",
             TerraformVariableConfig.builder()
                 .type("string")
                 .description("Sender email address for notifications")
@@ -262,7 +262,7 @@ class AzureStack(scope: Construct, id: String) :
                         "TriggerBlobStorage__credential" to "managedidentity",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
                         "ACS_ENDPOINT" to "https://${acsService.hostname}",
-                        "SENDER_EMAIL" to senderEmailVar.stringValue,
+                        "AZURE_SENDER_EMAIL" to senderEmailVar.stringValue,
                         "RECIPIENT_EMAIL" to recipientEmailVar.stringValue,
                     )
                 )

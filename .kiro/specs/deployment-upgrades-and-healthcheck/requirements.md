@@ -30,14 +30,14 @@ This feature covers a set of deployment improvements and platform upgrades for t
 
 #### Acceptance Criteria
 
-1. THE Application_Properties for the AWS infrastructure module SHALL reference environment variables for the `aws.ses.sender-email` property (e.g., `${SENDER_EMAIL}`) without embedding a hardcoded default email address
+1. THE Application_Properties for the AWS infrastructure module SHALL reference environment variables for the `aws.ses.sender-email` property (e.g., `${AWS_SENDER_EMAIL}`) without embedding a hardcoded default email address
 2. THE Application_Properties for the AWS infrastructure module SHALL reference environment variables for the `aws.ses.recipient-email` property (e.g., `${RECIPIENT_EMAIL}`) without embedding a hardcoded default email address
-3. THE Application_Properties for the Azure infrastructure module SHALL reference environment variables for the `azure.acs.sender-email` property (e.g., `${SENDER_EMAIL}`) without embedding a hardcoded default email address
+3. THE Application_Properties for the Azure infrastructure module SHALL reference environment variables for the `azure.acs.sender-email` property (e.g., `${AZURE_SENDER_EMAIL}`) without embedding a hardcoded default email address
 4. THE Application_Properties for the Azure infrastructure module SHALL reference environment variables for the `azure.acs.recipient-email` property (e.g., `${RECIPIENT_EMAIL}`) without embedding a hardcoded default email address
 5. THE Application_Properties for both AWS and Azure infrastructure modules SHALL NOT contain the literal string "REPLACEME" or any hardcoded email address in the email property values
-6. THE AWS CDK_Stack SHALL pass the `SENDER_EMAIL` and `RECIPIENT_EMAIL` values as Lambda environment variables sourced from deployment-time configuration
-7. THE Azure CDK_Stack SHALL pass the `SENDER_EMAIL` and `RECIPIENT_EMAIL` values as function app application settings sourced from deployment-time configuration
-8. THE Pipeline SHALL provide the `SENDER_EMAIL` and `RECIPIENT_EMAIL` values from GitHub Actions secrets during deployment
+6. THE AWS CDK_Stack SHALL pass the `AWS_SENDER_EMAIL` and `RECIPIENT_EMAIL` values as Lambda environment variables sourced from deployment-time configuration
+7. THE Azure CDK_Stack SHALL pass the `AZURE_SENDER_EMAIL` and `RECIPIENT_EMAIL` values as function app application settings sourced from deployment-time configuration
+8. THE Pipeline SHALL provide the `AWS_SENDER_EMAIL`, `AZURE_SENDER_EMAIL`, and `RECIPIENT_EMAIL` values from GitHub Actions secrets during deployment
 
 ### Requirement 2: Health Check Endpoint for AWS Lambda
 

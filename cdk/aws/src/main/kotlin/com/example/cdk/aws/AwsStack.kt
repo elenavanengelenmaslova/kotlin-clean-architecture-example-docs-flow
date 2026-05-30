@@ -71,7 +71,7 @@ class AwsStack(
 
         val senderEmailVar = TerraformVariable(
             this,
-            "SENDER_EMAIL",
+            "AWS_SENDER_EMAIL",
             TerraformVariableConfig.builder()
                 .type("string")
                 .description("The sender email address for SES notifications")
@@ -230,7 +230,7 @@ class AwsStack(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "uploadDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
-                                "SENDER_EMAIL" to senderEmail,
+                                "AWS_SENDER_EMAIL" to senderEmail,
                                 "RECIPIENT_EMAIL" to recipientEmail,
                                 //Stop at level 1 (C1 compiler)
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
@@ -269,7 +269,7 @@ class AwsStack(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "processDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
-                                "SENDER_EMAIL" to senderEmail,
+                                "AWS_SENDER_EMAIL" to senderEmail,
                                 "RECIPIENT_EMAIL" to recipientEmail,
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
@@ -305,7 +305,7 @@ class AwsStack(
                             mapOf(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "healthCheck",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
-                                "SENDER_EMAIL" to senderEmail,
+                                "AWS_SENDER_EMAIL" to senderEmail,
                                 "RECIPIENT_EMAIL" to recipientEmail,
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
