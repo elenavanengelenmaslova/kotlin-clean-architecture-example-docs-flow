@@ -68,6 +68,26 @@ class AwsStack(
                 .build()
         )
         val account = accountVar.stringValue
+
+        val senderEmailVar = TerraformVariable(
+            this,
+            "SENDER_EMAIL",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("The sender email address for SES notifications")
+                .build()
+        )
+        val senderEmail = senderEmailVar.stringValue
+
+        val recipientEmailVar = TerraformVariable(
+            this,
+            "RECIPIENT_EMAIL",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("The recipient email address for SES notifications")
+                .build()
+        )
+        val recipientEmail = recipientEmailVar.stringValue
         // Configure the AWS Provider
         AwsProvider(
             this,
@@ -210,6 +230,8 @@ class AwsStack(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "uploadDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
+                                "SENDER_EMAIL" to senderEmail,
+                                "RECIPIENT_EMAIL" to recipientEmail,
                                 //Stop at level 1 (C1 compiler)
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
@@ -247,11 +269,49 @@ class AwsStack(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "processDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
+                                "SENDER_EMAIL" to senderEmail,
+                                "RECIPIENT_EMAIL" to recipientEmail,
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
                         ).build()
                 )
                 .timeout(120)
+                .build()
+        )
+
+        // Create Health Check Lambda function
+        val healthCheckLambda = LambdaFunction(
+            this,
+            "DocsFlow-HealthCheck-Fun",
+            LambdaFunctionConfig.builder()
+                .functionName("DocsFlow-HealthCheck-Fun")
+                .handler("org.springframework.cloud.function.adapter.aws.FunctionInvoker")
+                .runtime("java21")
+                .s3Bucket("lambda-deployment-clean-architecture-example")
+                .s3Key("docs-flow-aws-function.jar")
+                .sourceCodeHash(
+                    Fn.filebase64sha256("../../../../../build/dist/docs-flow-aws-function.jar")
+                )
+                .role(lambdaRole.arn)
+                .dependsOn(
+                    listOf(
+                        lambdaRole
+                    )
+                )
+                .memorySize(1024)
+                .environment(
+                    LambdaFunctionEnvironment.builder()
+                        .variables(
+                            mapOf(
+                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "healthCheck",
+                                "MAIN_CLASS" to "com.example.clean.architecture.Application",
+                                "SENDER_EMAIL" to senderEmail,
+                                "RECIPIENT_EMAIL" to recipientEmail,
+                                "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+                            )
+                        ).build()
+                )
+                .timeout(30)
                 .build()
         )
 
@@ -319,13 +379,64 @@ class AwsStack(
                 .build()
         )
 
+        // Create API Gateway Resource for health check endpoint
+        val healthResource = ApiGatewayResource(
+            this,
+            "Health-Resource",
+            ApiGatewayResourceConfig.builder()
+                .restApiId(api.id)
+                .parentId(api.rootResourceId)
+                .pathPart("health")
+                .build()
+        )
+
+        // Create API Gateway Method for health check endpoint (GET)
+        val healthMethod = ApiGatewayMethod(
+            this,
+            "Health-Method",
+            ApiGatewayMethodConfig.builder()
+                .restApiId(api.id)
+                .resourceId(healthResource.id)
+                .httpMethod("GET")
+                .authorization("NONE")
+                .apiKeyRequired(true)  // Require API key
+                .build()
+        )
+
+        // Grant API Gateway permission to invoke Health Check Lambda
+        val healthCheckLambdaPermission = LambdaPermission(
+            this,
+            "DocsFlow-HealthCheck-Permission",
+            LambdaPermissionConfig.builder()
+                .functionName(healthCheckLambda.functionName)
+                .action("lambda:InvokeFunction")
+                .principal("apigateway.amazonaws.com")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
+                .build()
+        )
+
+        // Create Lambda integration for health check endpoint
+        val healthIntegration = ApiGatewayIntegration(
+            this,
+            "Health-Integration",
+            ApiGatewayIntegrationConfig.builder()
+                .restApiId(api.id)
+                .dependsOn(listOf(healthCheckLambdaPermission))
+                .resourceId(healthResource.id)
+                .httpMethod(healthMethod.httpMethod)
+                .integrationHttpMethod("POST")
+                .type("AWS_PROXY")
+                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${healthCheckLambda.arn}/invocations")
+                .build()
+        )
+
         // Create API Gateway Deployment
         val deployment = ApiGatewayDeployment(
             this,
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
-                .dependsOn(listOf(docsFlowIntegration))
+                .dependsOn(listOf(docsFlowIntegration, healthIntegration))
                 .build()
         )
 
@@ -378,6 +489,25 @@ class AwsStack(
                 .keyId(apiKey.id)
                 .keyType("API_KEY")
                 .usagePlanId(usagePlan.id)
+                .build()
+        )
+
+        // Terraform Outputs for pipeline health check
+        TerraformOutput(
+            this,
+            "api_gateway_url",
+            TerraformOutputConfig.builder()
+                .value("https://${api.id}.execute-api.$region.amazonaws.com/${stage.stageName}")
+                .description("The base URL of the API Gateway stage")
+                .build()
+        )
+
+        TerraformOutput(
+            this,
+            "api_key_name",
+            TerraformOutputConfig.builder()
+                .value(apiKey.name)
+                .description("The name of the API key for lookup via AWS CLI")
                 .build()
         )
 

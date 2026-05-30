@@ -77,6 +77,12 @@ tasks.jar {
 
 tasks.test {
     useJUnitPlatform()
+    // Supply mock values to the test JVM only. Production application.properties has no
+    // defaults for these (injected via deployment secrets), so the Spring context cannot
+    // resolve the placeholders during tests without them.
+    environment("SENDER_EMAIL", "test-sender@example.com")
+    environment("RECIPIENT_EMAIL", "test-recipient@example.com")
+    environment("ACS_ENDPOINT", "https://test-acs.communication.azure.com")
 }
 
 tasks.named("azureFunctionsPackage") {

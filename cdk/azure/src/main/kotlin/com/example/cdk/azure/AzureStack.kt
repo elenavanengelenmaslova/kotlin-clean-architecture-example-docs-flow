@@ -84,6 +84,24 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+        val senderEmailVar = TerraformVariable(
+            this,
+            "SENDER_EMAIL",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("Sender email address for notifications")
+                .build()
+        )
+
+        val recipientEmailVar = TerraformVariable(
+            this,
+            "RECIPIENT_EMAIL",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("Recipient email address for notifications")
+                .build()
+        )
+
         val resourceGroupName = azureResourceGroupNameVar.stringValue
         val functionAppName =
             "docs-flow-spring-clean-architecture-fun"
@@ -244,6 +262,8 @@ class AzureStack(scope: Construct, id: String) :
                         "TriggerBlobStorage__credential" to "managedidentity",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
                         "ACS_ENDPOINT" to "https://${acsService.hostname}",
+                        "SENDER_EMAIL" to senderEmailVar.stringValue,
+                        "RECIPIENT_EMAIL" to recipientEmailVar.stringValue,
                     )
                 )
                 .build()
@@ -312,6 +332,25 @@ class AzureStack(scope: Construct, id: String) :
                 .scope(acsService.id)
                 .roleDefinitionId(acsCustomRole.roleDefinitionResourceId)
                 .principalId(functionApp.identity.principalId)
+                .build()
+        )
+
+        // Terraform outputs for pipeline health check steps
+        TerraformOutput(
+            this,
+            "function_app_name",
+            TerraformOutputConfig.builder()
+                .value(functionApp.name)
+                .description("The Azure Function App name")
+                .build()
+        )
+
+        TerraformOutput(
+            this,
+            "resource_group_name",
+            TerraformOutputConfig.builder()
+                .value(resourceGroup.name)
+                .description("The Azure resource group name")
                 .build()
         )
     }

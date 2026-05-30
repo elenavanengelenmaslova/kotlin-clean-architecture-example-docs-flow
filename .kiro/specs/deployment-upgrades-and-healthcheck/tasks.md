@@ -6,20 +6,20 @@ This implementation plan deploys changes in three sequential checkpoints, each v
 
 ## Tasks
 
-- [ ] 1. Configure email addresses and implement health check in application layer
-  - [ ] 1.1 Replace hardcoded email defaults in application.properties
+- [x] 1. Configure email addresses and implement health check in application layer
+  - [x] 1.1 Replace hardcoded email defaults in application.properties
     - Remove `REPLACEME` default values from `software/infrastructure/aws/src/main/resources/application.properties` for `aws.ses.sender-email` and `aws.ses.recipient-email` — use `${SENDER_EMAIL}` and `${RECIPIENT_EMAIL}` without defaults
     - Remove `REPLACEME` default values from `software/infrastructure/azure/src/main/resources/application.properties` for `azure.acs.sender-email` and `azure.acs.recipient-email` — use `${SENDER_EMAIL}` and `${RECIPIENT_EMAIL}` without defaults
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [ ] 1.2 Implement HealthCheckFunction bean in the application layer
+  - [x] 1.2 Implement HealthCheckFunction bean in the application layer
     - Create `software/application/src/main/kotlin/com/example/clean/architecture/service/HealthCheckFunction.kt`
     - Implement `HealthCheckConfig` with a `@Bean` method returning `Supplier<HealthStatus>`
     - Create `HealthStatus` data class with `status: String` field
     - Register `healthCheck` in `spring.cloud.function.definition` in application.properties
     - _Requirements: 2.1, 3.1_
 
-  - [ ]* 1.3 Write unit tests for HealthCheckFunction
+  - [x] 1.3 Write unit tests for HealthCheckFunction
     - Create `software/application/src/test/kotlin/com/example/clean/architecture/service/HealthCheckFunctionTest.kt`
     - Test that `healthCheck` supplier returns `HealthStatus("UP")`
     - Test idempotency: multiple invocations return the same result
@@ -27,7 +27,7 @@ This implementation plan deploys changes in three sequential checkpoints, each v
     - **Validates: Requirements 2.1, 3.1**
 
 - [ ] 2. Implement health check in AWS infrastructure
-  - [ ] 2.1 Add health check Lambda configuration to AWS CDK stack
+  - [x] 2.1 Add health check Lambda configuration to AWS CDK stack
     - Modify `cdk/aws/src/main/kotlin/com/example/cdk/aws/AwsStack.kt`
     - Add a new Lambda function resource with `SPRING_CLOUD_FUNCTION_DEFINITION` set to `healthCheck`
     - Add API Gateway resource at `/health` with GET method and API key required
@@ -36,34 +36,34 @@ This implementation plan deploys changes in three sequential checkpoints, each v
     - Run `generateTerraform.sh` to regenerate Terraform JSON
     - _Requirements: 1.6, 2.3, 2.4, 2.5_
 
-  - [ ]* 2.2 Write unit tests for AWS health check Lambda handler
+  - [ ] 2.2 Write unit tests for AWS health check Lambda handler
     - Create test in `software/infrastructure/aws/src/test/kotlin/com/example/clean/architecture/`
     - Test that the health check handler returns HTTP 200 with `{"status":"UP"}`
     - Test that an internal error returns HTTP 503 with `{"status":"DOWN"}`
     - _Requirements: 2.1, 2.2_
 
 - [ ] 3. Implement health check in Azure infrastructure
-  - [ ] 3.1 Add health check HTTP trigger function to Azure infra module
+  - [x] 3.1 Add health check HTTP trigger function to Azure infra module
     - Add `Health` function with `@HttpTrigger` (GET, route="health", authLevel=FUNCTION) in `software/infrastructure/azure/src/main/kotlin/com/example/clean/architecture/`
     - Return HTTP 200 with `{"status":"UP"}` on success, HTTP 503 with `{"status":"DOWN"}` on error
     - Use `runCatching` for error handling
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-  - [ ] 3.2 Add email environment variables to Azure CDK stack
+  - [x] 3.2 Add email environment variables to Azure CDK stack
     - Modify `cdk/azure/src/main/kotlin/com/example/cdk/azure/AzureStack.kt`
     - Pass `SENDER_EMAIL` and `RECIPIENT_EMAIL` as function app application settings from Terraform variables
     - Add Terraform outputs for `function_app_name` and `resource_group_name`
     - Run `generateTerraform.sh` to regenerate Terraform JSON
     - _Requirements: 1.7, 1.8_
 
-  - [ ]* 3.3 Write unit tests for Azure health check function
+  - [ ] 3.3 Write unit tests for Azure health check function
     - Create test in `software/infrastructure/azure/src/test/kotlin/com/example/clean/architecture/`
     - Test that the health function returns HTTP 200 with `{"status":"UP"}`
     - Test that an internal error returns HTTP 503 with `{"status":"DOWN"}`
     - _Requirements: 3.1, 3.4_
 
 - [ ] 4. Add post-deployment health check to AWS pipeline
-  - [ ] 4.1 Add health check step to `workflow-build-deploy-aws.yml`
+  - [x] 4.1 Add health check step to `workflow-build-deploy-aws.yml`
     - After Terraform apply, add step to retrieve API Gateway URL from Terraform output
     - Add step to retrieve API key dynamically using `aws apigateway get-api-keys`
     - Add health check step with curl: 3 retries, 10s delay, 30s timeout
@@ -71,7 +71,7 @@ This implementation plan deploys changes in three sequential checkpoints, each v
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
 - [ ] 5. Add post-deployment health check to Azure pipeline
-  - [ ] 5.1 Add health check step to `workflow-build-deploy-azure.yml`
+  - [x] 5.1 Add health check step to `workflow-build-deploy-azure.yml`
     - After `azureFunctionsDeploy`, add step to retrieve Function URL via `az functionapp show`
     - Add step to retrieve function key via `az functionapp keys list`
     - Add health check step with curl: 3 retries, 10s delay, 30s timeout

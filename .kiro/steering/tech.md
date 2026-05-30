@@ -2,9 +2,17 @@
 
 ## Gradle Cache Policy
 
-**NEVER read from or rely on the Gradle cache.** Always resolve dependencies from their declared repositories (Maven Central, etc.) and never assume a dependency is available because it may have been cached previously. When exploring what libraries or versions are available, always check `build.gradle.kts` files directly.
+This policy is about **how you gather information**, not about modifying the cache.
 
-**When you need to understand a library's API**, look up the library's official documentation online or browse the library's GitHub repository at the correct tag/version. Do not dig into the Gradle cache.
+**Do NOT inspect the Gradle cache as a source of truth.** When determining which libraries or versions are available, read the `build.gradle.kts` files directly rather than browsing `~/.gradle/caches/`. Do not assume a dependency exists simply because it may have been cached by a previous build — always confirm it is declared in a repository (Maven Central, etc.).
+
+**When you need to understand a library's API**, look up the library's official documentation online or browse the library's GitHub repository at the correct tag/version. Do not dig into the Gradle cache for this purpose.
+
+**Never delete, clear, or modify the Gradle cache.** Specifically:
+- NEVER run `rm -rf ~/.gradle/caches` or `rm -rf ~/.gradle/caches/transforms-*` or any command that removes files under the global Gradle home (`~/.gradle`). This is machine-wide and affects every Gradle project on the system.
+- If you need a clean build, use **project-scoped** Gradle tasks instead, e.g. `./gradlew :infra-azure:clean :infra-azure:test`. The `clean` task only removes the module's `build/` directory.
+- `--rerun-tasks` may be used to force task re-execution without touching any cache.
+- "Don't rely on the cache" means *don't read it as authoritative* — it does NOT mean *delete it*.
 
 ## Multi-module Gradle Workflow
 
