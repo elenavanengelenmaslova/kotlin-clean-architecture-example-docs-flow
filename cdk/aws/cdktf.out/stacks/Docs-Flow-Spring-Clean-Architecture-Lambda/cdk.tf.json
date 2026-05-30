@@ -6,6 +6,20 @@
       "version": "0.20.11"
     },
     "outputs": {
+      "Docs-Flow-Spring-Clean-Architecture-Lambda": {
+        "api_gateway_url": "api_gateway_url",
+        "api_key_name": "api_key_name"
+      }
+    }
+  },
+  "output": {
+    "api_gateway_url": {
+      "description": "The base URL of the API Gateway stage",
+      "value": "https://${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}.execute-api.${var.DEPLOY_TARGET_REGION}.amazonaws.com/${aws_api_gateway_stage.DocsFlow-Spring-Clean-Architecture-Stage.stage_name}"
+    },
+    "api_key_name": {
+      "description": "The name of the API key for lookup via AWS CLI",
+      "value": "${aws_api_gateway_api_key.DocsFlow-Spring-Clean-Architecture-ApiKey.name}"
     }
   },
   "provider": {
@@ -42,7 +56,8 @@
           }
         },
         "depends_on": [
-          "aws_api_gateway_integration.DocsFlow-Integration"
+          "aws_api_gateway_integration.DocsFlow-Integration",
+          "aws_api_gateway_integration.Health-Integration"
         ],
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
       }
@@ -64,6 +79,23 @@
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
         "type": "AWS_PROXY",
         "uri": "arn:aws:apigateway:${var.DEPLOY_TARGET_REGION}:lambda:path/2015-03-31/functions/${aws_lambda_function.DocsFlow-Spring-Clean-Architecture-Fun.arn}/invocations"
+      },
+      "Health-Integration": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/Health-Integration",
+            "uniqueId": "Health-Integration"
+          }
+        },
+        "depends_on": [
+          "aws_lambda_permission.DocsFlow-HealthCheck-Permission"
+        ],
+        "http_method": "${aws_api_gateway_method.Health-Method.http_method}",
+        "integration_http_method": "POST",
+        "resource_id": "${aws_api_gateway_resource.Health-Resource.id}",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
+        "type": "AWS_PROXY",
+        "uri": "arn:aws:apigateway:${var.DEPLOY_TARGET_REGION}:lambda:path/2015-03-31/functions/${aws_lambda_function.DocsFlow-HealthCheck-Fun.arn}/invocations"
       }
     },
     "aws_api_gateway_method": {
@@ -79,6 +111,19 @@
         "http_method": "POST",
         "resource_id": "${aws_api_gateway_resource.DocsFlow-Resource.id}",
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
+      },
+      "Health-Method": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/Health-Method",
+            "uniqueId": "Health-Method"
+          }
+        },
+        "api_key_required": true,
+        "authorization": "NONE",
+        "http_method": "GET",
+        "resource_id": "${aws_api_gateway_resource.Health-Resource.id}",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
       }
     },
     "aws_api_gateway_resource": {
@@ -91,6 +136,17 @@
         },
         "parent_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.root_resource_id}",
         "path_part": "docs-flow",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
+      },
+      "Health-Resource": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/Health-Resource",
+            "uniqueId": "Health-Resource"
+          }
+        },
+        "parent_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.root_resource_id}",
+        "path_part": "health",
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
       }
     },
@@ -208,8 +264,10 @@
         "environment": {
           "variables": {
             "AWS_S3_BUCKET_NAME": "${aws_s3_bucket.DocsFlowBucket.bucket}",
+            "AWS_SENDER_EMAIL": "${var.AWS_SENDER_EMAIL}",
             "JAVA_TOOL_OPTIONS": "-XX:+TieredCompilation -XX:TieredStopAtLevel=1",
             "MAIN_CLASS": "com.example.clean.architecture.Application",
+            "RECIPIENT_EMAIL": "${var.RECIPIENT_EMAIL}",
             "SPRING_CLOUD_FUNCTION_DEFINITION": "processDocument"
           }
         },
@@ -222,6 +280,35 @@
         "s3_key": "docs-flow-aws-function.jar",
         "source_code_hash": "${filebase64sha256(\"../../../../../build/dist/docs-flow-aws-function.jar\")}",
         "timeout": 120
+      },
+      "DocsFlow-HealthCheck-Fun": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-HealthCheck-Fun",
+            "uniqueId": "DocsFlow-HealthCheck-Fun"
+          }
+        },
+        "depends_on": [
+          "aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role"
+        ],
+        "environment": {
+          "variables": {
+            "AWS_SENDER_EMAIL": "${var.AWS_SENDER_EMAIL}",
+            "JAVA_TOOL_OPTIONS": "-XX:+TieredCompilation -XX:TieredStopAtLevel=1",
+            "MAIN_CLASS": "com.example.clean.architecture.Application",
+            "RECIPIENT_EMAIL": "${var.RECIPIENT_EMAIL}",
+            "SPRING_CLOUD_FUNCTION_DEFINITION": "healthCheck"
+          }
+        },
+        "function_name": "DocsFlow-HealthCheck-Fun",
+        "handler": "org.springframework.cloud.function.adapter.aws.FunctionInvoker",
+        "memory_size": 1024,
+        "role": "${aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role.arn}",
+        "runtime": "java21",
+        "s3_bucket": "lambda-deployment-clean-architecture-example",
+        "s3_key": "docs-flow-aws-function.jar",
+        "source_code_hash": "${filebase64sha256(\"../../../../../build/dist/docs-flow-aws-function.jar\")}",
+        "timeout": 30
       },
       "DocsFlow-Spring-Clean-Architecture-Fun": {
         "//": {
@@ -237,8 +324,10 @@
         "environment": {
           "variables": {
             "AWS_S3_BUCKET_NAME": "${aws_s3_bucket.DocsFlowBucket.bucket}",
+            "AWS_SENDER_EMAIL": "${var.AWS_SENDER_EMAIL}",
             "JAVA_TOOL_OPTIONS": "-XX:+TieredCompilation -XX:TieredStopAtLevel=1",
             "MAIN_CLASS": "com.example.clean.architecture.Application",
+            "RECIPIENT_EMAIL": "${var.RECIPIENT_EMAIL}",
             "SPRING_CLOUD_FUNCTION_DEFINITION": "uploadDocument"
           }
         },
@@ -254,6 +343,18 @@
       }
     },
     "aws_lambda_permission": {
+      "DocsFlow-HealthCheck-Permission": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-HealthCheck-Permission",
+            "uniqueId": "DocsFlow-HealthCheck-Permission"
+          }
+        },
+        "action": "lambda:InvokeFunction",
+        "function_name": "${aws_lambda_function.DocsFlow-HealthCheck-Fun.function_name}",
+        "principal": "apigateway.amazonaws.com",
+        "source_arn": "arn:aws:execute-api:${var.DEPLOY_TARGET_REGION}:${var.DEPLOY_TARGET_ACCOUNT}:${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}/*/*/*"
+      },
       "DocsFlow-S3-Permission": {
         "//": {
           "metadata": {
@@ -348,12 +449,20 @@
     }
   },
   "variable": {
+    "AWS_SENDER_EMAIL": {
+      "description": "The sender email address for SES notifications",
+      "type": "string"
+    },
     "DEPLOY_TARGET_ACCOUNT": {
       "description": "The AWS account",
       "type": "string"
     },
     "DEPLOY_TARGET_REGION": {
       "description": "The AWS region",
+      "type": "string"
+    },
+    "RECIPIENT_EMAIL": {
+      "description": "The recipient email address for SES notifications",
       "type": "string"
     }
   }

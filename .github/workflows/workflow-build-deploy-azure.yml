@@ -22,6 +22,10 @@ on:
         required: true
       AZURE_STORAGE_ACCOUNT_ACCESS_KEY:
         required: true
+      azure_sender_email:
+        required: true
+      recipient_email:
+        required: true
 
 env:
   DEPLOY_TARGET_REGION: ${{ inputs.azure_region }}
@@ -36,6 +40,8 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
   ARM_TENANT_ID: ${{ secrets.azure_tenant_id }}
   ARM_USE_OIDC: true
+  TF_VAR_AZURE_SENDER_EMAIL: ${{ secrets.azure_sender_email }}
+  TF_VAR_RECIPIENT_EMAIL: ${{ secrets.recipient_email }}
 
 jobs:
   deploy-infra:
@@ -87,6 +93,8 @@ jobs:
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
             -var="AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}" \
             -var="AZURE_RESOURCE_GROUP_NAME=${AZURE_RESOURCE_GROUP_NAME}" \
+            -var="AZURE_SENDER_EMAIL=${TF_VAR_AZURE_SENDER_EMAIL}" \
+            -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}" \
             -out=tfplan
           terraform apply -auto-approve tfplan
 

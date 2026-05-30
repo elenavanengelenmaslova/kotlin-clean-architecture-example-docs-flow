@@ -6,6 +6,10 @@
       "version": "0.20.12"
     },
     "outputs": {
+      "Docs-Flow-Azure-Clean-Architecture": {
+        "function_app_name": "function_app_name",
+        "resource_group_name": "resource_group_name"
+      }
     }
   },
   "data": {
@@ -19,6 +23,16 @@
         },
         "name": "${var.AZURE_RESOURCE_GROUP_NAME}"
       }
+    }
+  },
+  "output": {
+    "function_app_name": {
+      "description": "The Azure Function App name",
+      "value": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.name}"
+    },
+    "resource_group_name": {
+      "description": "The Azure resource group name",
+      "value": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
     }
   },
   "provider": {
@@ -77,7 +91,9 @@
           "APPLICATIONINSIGHTS_ENABLE_AGENT": "true",
           "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL": "INFO",
           "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL": "ERROR",
+          "AZURE_SENDER_EMAIL": "${var.AZURE_SENDER_EMAIL}",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
+          "RECIPIENT_EMAIL": "${var.RECIPIENT_EMAIL}",
           "TriggerBlobStorage__accountName": "docsflow",
           "TriggerBlobStorage__credential": "managedidentity",
           "WEBSITE_RUN_FROM_PACKAGE": "1"
@@ -265,6 +281,10 @@
       "description": "Azure resource group name",
       "type": "string"
     },
+    "AZURE_SENDER_EMAIL": {
+      "description": "Sender email address for notifications",
+      "type": "string"
+    },
     "AZURE_STORAGE_ACCOUNT_ACCESS_KEY": {
       "description": "Storage account access key",
       "type": "string"
@@ -279,6 +299,10 @@
     },
     "AZURE_TENANT_ID": {
       "description": "Azure tenant ID",
+      "type": "string"
+    },
+    "RECIPIENT_EMAIL": {
+      "description": "Recipient email address for notifications",
       "type": "string"
     }
   }

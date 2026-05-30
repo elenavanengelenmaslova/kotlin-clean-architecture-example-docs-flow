@@ -12,12 +12,18 @@ on:
         required: true
       role_name:
         required: true
+      aws_sender_email:
+        required: true
+      recipient_email:
+        required: true
 
 env:
   # Supply target AWS account here
   TF_VAR_DEPLOY_TARGET_ACCOUNT: ${{ secrets.aws_account_id }}
   DEPLOY_TARGET_REGION: ${{ inputs.aws_region }}
   BUILD_NO: ${{ github.run_number }}
+  TF_VAR_AWS_SENDER_EMAIL: ${{ secrets.aws_sender_email }}
+  TF_VAR_RECIPIENT_EMAIL: ${{ secrets.recipient_email }}
 
 jobs:
   build:
@@ -108,7 +114,11 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/cdk/aws/cdktf.out/stacks/${{ matrix.config.stack-name }}
           terraform init -reconfigure -backend-config="region=${DEPLOY_TARGET_REGION}"
-          terraform plan -var="DEPLOY_TARGET_REGION=${DEPLOY_TARGET_REGION}" -out=tfplan
+          terraform plan \
+            -var="DEPLOY_TARGET_REGION=${DEPLOY_TARGET_REGION}" \
+            -var="AWS_SENDER_EMAIL=${TF_VAR_AWS_SENDER_EMAIL}" \
+            -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}" \
+            -out=tfplan
 
       - name: Apply Only Relevant Changes
         run: |
