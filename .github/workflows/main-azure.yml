@@ -5,6 +5,7 @@ on:
 #    paths-ignore:
 #      - '**.md'
 #      - 'docs/**'
+#      - '.kiro/**'
 #      - 'cdk/aws/**'
 #      - 'software/infrastructure/aws/**'
 #      - ".github/workflows/**-aws.yml"

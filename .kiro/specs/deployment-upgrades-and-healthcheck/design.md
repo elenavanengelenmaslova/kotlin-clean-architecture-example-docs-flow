@@ -1,191 +1,281 @@
-# Design Document: Deployment Upgrades and Health Check
+# Design Document: Cold-Start Optimization (ARM64, SnapStart, Priming) and Azure Flex Consumption
 
 ## Overview
 
-This design covers a comprehensive set of deployment improvements and platform upgrades for the Kotlin Clean Architecture demo project. The changes span multiple concerns:
+This design covers cold-start optimization for the Kotlin Clean Architecture demo project. The work is scoped to two concerns:
 
-1. **Email configuration** — Replace hardcoded `REPLACEME` placeholders with environment variable injection via GitHub Actions secrets
-2. **Health check endpoints** — Add `/health` (AWS) and `/api/health` (Azure) endpoints as Spring Cloud Functions for post-deployment verification
-3. **Pipeline health checks** — Integrate automated health check calls into CI/CD workflows with dynamic credential retrieval (AWS CLI / Azure CLI)
-4. **Azure Flex Consumption** — Upgrade from Y1 (Consumption) to FC1 (Flex Consumption) plan
-5. **Kotlin 2.3.20** — Upgrade the Kotlin compiler and plugins
-6. **Dependency upgrades** — Update CDKTF, Spring Boot, Spring Cloud, AWS/Azure SDKs, build plugins, and utility libraries
-7. **JVM 25** — Upgrade the JVM target across build, CI/CD, and cloud runtimes
-8. **ARM64 + SnapStart + Priming** — Enable ARM64 architecture, SnapStart for AWS Lambda, and a shared priming component in the application layer
-9. **Deployment checkpoints** — Three-stage deployment with health check gates between stages
+1. **Move the Azure Function to the Flex Consumption plan (Requirement 1)** — Upgrade the Azure service plan from `Y1` (Consumption) to `FC1` (Flex Consumption) and switch to the flex-compatible function-app resource type. This is a hard **prerequisite** for the Azure side of the priming work, because the Azure `@WarmupTrigger` is only available on the Premium and Flex Consumption plans. The existing Linux OS type and Java 21 application stack are retained — no JVM, Kotlin, or dependency version changes are part of this feature.
 
-The design preserves the clean architecture layering (domain → application → infrastructure) and the dual-cloud deployment model.
+2. **ARM64 architecture, SnapStart, and two-phase priming (Requirement 2)** — Enable ARM64 for AWS Lambda, turn on SnapStart (`PublishedVersions`), and add a shared **two-phase priming model** in the application layer:
+   - **Phase 1 (`ClassPreloader.primeClasses()`)** — network-free class pre-loading and serialization-cache warmup.
+   - **Phase 2 (`Warmable` SPI + `WarmupCoordinator`)** — connection/credential warmup performed by infrastructure adapters.
+
+   AWS runs Phase 1 in the SnapStart `beforeCheckpoint` hook and Phase 2 in `afterRestore`. Azure runs both phases from a `@WarmupTrigger` function (which is why Requirement 1 is its prerequisite).
+
+The design preserves the clean architecture layering (domain → application → infrastructure) and the dual-cloud deployment model. There are no new health check endpoints, no pipeline health-check steps, and no deployment checkpoints. Verification of the change uses the **existing `docs-flow` endpoint** (API key on AWS, function key on Azure), backed by unit tests for the priming components and CDK synth tests for the infrastructure changes.
 
 ## Architecture
 
-### High-Level Deployment Flow
-
-```mermaid
-flowchart TD
-    subgraph "GitHub Actions Pipeline"
-        A[Build & Test] --> CP1[Checkpoint 1: Email + Health Check]
-        CP1 --> HC1{Health Check Pass?}
-        HC1 -->|Yes| CP2[Checkpoint 2: Upgrades]
-        HC1 -->|No| FAIL1[Fail Pipeline]
-        CP2 --> HC2{Health Check Pass?}
-        HC2 -->|Yes| CP3[Checkpoint 3: ARM64 + SnapStart + Priming]
-        HC2 -->|No| FAIL2[Fail Pipeline]
-        CP3 --> HC3{Health Check Pass?}
-        HC3 -->|Yes| SUCCESS[Deployment Complete]
-        HC3 -->|No| FAIL3[Fail Pipeline]
-    end
-```
-
-### Health Check Architecture
-
-```mermaid
-flowchart LR
-    subgraph "AWS"
-        APIGW[API Gateway /health] --> LambdaHC[Lambda: healthCheck function]
-        LambdaHC --> SCF_AWS[Spring Cloud Function]
-    end
-    subgraph "Azure"
-        AzHTTP[HTTP Trigger /api/health] --> AzFunc[Azure Function: Health]
-        AzFunc --> SCF_AZ[Spring Cloud Function]
-    end
-    subgraph "Application Layer"
-        SCF_AWS --> HealthUseCase[HealthCheckFunction Bean]
-        SCF_AZ --> HealthUseCase
-    end
-```
-
 ### Priming Architecture
 
+The priming model has **two phases** with different safety characteristics:
+
+- **Phase 1 — Class_Preload (`primeClasses()`)**: network-free, pure class loading and in-memory serialization warmup. Safe to run anywhere, including inside a SnapStart snapshot.
+- **Phase 2 — Warmable warmup (`warmUp()`)**: opens network connections and fetches managed-identity tokens. Must NOT run inside a snapshot (`beforeCheckpoint`), because connections and tokens captured at checkpoint time are invalid after the snapshot is restored on a different host.
+
 ```mermaid
 flowchart TD
-    subgraph "Application Layer (shared)"
-        Primer[ApplicationPrimer]
+    subgraph APP["Application Layer (shared)"]
+        ClassPreloader["ClassPreloader.primeClasses()\n(Phase 1: network-free)"]
+        Warmable["Warmable SPI: warmUp()\n(Phase 2: connections/credentials)"]
+        Coordinator["WarmupCoordinator\n(iterates List&lt;Warmable&gt;)"]
+        Coordinator --> Warmable
     end
-    subgraph "AWS Infrastructure"
-        SnapStart[SnapStart beforeCheckpoint] --> Primer
+
+    subgraph AWS["AWS Infrastructure (infra-aws)"]
+        BeforeCheckpoint["SnapStartPrimingHook.beforeCheckpoint()"]
+        AfterRestore["SnapStartPrimingHook.afterRestore()"]
     end
-    subgraph "Azure Infrastructure"
-        WarmupTrigger[@WarmupTrigger] --> Primer
+
+    subgraph AZURE["Azure Infrastructure (infra-azure)"]
+        WarmupTrigger["@WarmupTrigger function"]
     end
+
+    BeforeCheckpoint -->|"Phase 1 ONLY"| ClassPreloader
+    AfterRestore -->|"Phase 2"| Coordinator
+    WarmupTrigger -->|"Phase 1 + Phase 2"| ClassPreloader
+    WarmupTrigger -->|"Phase 1 + Phase 2"| Coordinator
+
+    subgraph ADAPTERS["Infra adapters implementing Warmable"]
+        S3["S3ObjectStore (headBucket)"]
+        SES["SESEmailSender (getSendQuota)"]
+        Blob["BlobStorageObjectStore (exists/getProperties)"]
+        ACS["ACSEmailSender (credential warmup, optional)"]
+    end
+    Warmable -.implemented by.-> S3
+    Warmable -.implemented by.-> SES
+    Warmable -.implemented by.-> Blob
+    Warmable -.implemented by.-> ACS
 ```
 
 ### Clean Architecture Layer Impact
 
 | Layer | Changes |
 |-------|---------|
-| **Domain** | No changes |
-| **Application** | Add `HealthCheckFunction` bean, add `ApplicationPrimer` component |
-| **Infra-AWS** | Health check Lambda config, SnapStart + ARM64 + priming hook |
-| **Infra-Azure** | Health check HTTP trigger, `@WarmupTrigger` priming function |
-| **CDK-AWS** | `/health` API Gateway resource, ARM64, SnapStart, version alias |
-| **CDK-Azure** | Flex Consumption plan, Java 25 runtime |
-| **CI/CD** | JDK 25, health check steps, deployment checkpoints |
+| **Domain** | No changes. Domain ports `ObjectStorageInterface` and `DocumentNotificationInterface` keep their existing operations only — they do NOT declare `warmUp()` (Requirement 2.9) |
+| **Application** | Add `ClassPreloader` (Phase 1, network-free `primeClasses()`); add `Warmable` SPI + `WarmupCoordinator` (Phase 2 connection/credential warmup) |
+| **Infra-AWS** | SnapStart + ARM64; `SnapStartPrimingHook` (`beforeCheckpoint` → Phase 1 only, `afterRestore` → Phase 2); `S3ObjectStore`/`SESEmailSender` additionally implement `Warmable` |
+| **Infra-Azure** | `@WarmupTrigger` function runs Phase 1 + Phase 2; `BlobStorageObjectStore` (and optionally `ACSEmailSender`) additionally implement `Warmable` |
+| **CDK-AWS** | ARM64 architecture, SnapStart (`PublishedVersions`), published version + API Gateway alias wiring |
+| **CDK-Azure** | Flex Consumption plan (`Y1` → `FC1`), flex-compatible function-app resource type, Linux + existing Java 21 stack retained |
+| **CI/CD** | Deploy as today, then verify via the existing `docs-flow` endpoint (no new pipeline steps required) |
 
 ## Components and Interfaces
 
-### 1. Health Check Function (Application Layer)
+### 1. Two-Phase Priming Components (Application Layer)
 
-A Spring Cloud Function bean that returns the application's operational status.
+Priming is split into two components in the shared application layer so both AWS and Azure invoke the same logic. The split exists because the two phases have different safety characteristics under SnapStart (see Priming Architecture above).
+
+#### 1a. Phase 1 — `ClassPreloader` (network-free)
+
+Pre-loads application classes and warms the Jackson/Spring Cloud Function serialization caches by round-tripping a sample `HttpRequest`/`HttpResponse`. It performs **no network or filesystem I/O** and is wrapped in `runCatching` so it never throws. Safe to run in AWS `beforeCheckpoint`, AWS `afterRestore`, and Azure warmup.
 
 ```kotlin
-// software/application/src/main/kotlin/com/example/clean/architecture/service/HealthCheckFunction.kt
+// software/application/src/main/kotlin/com/example/clean/architecture/service/ClassPreloader.kt
 package com.example.clean.architecture.service
 
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import java.util.function.Supplier
+import com.example.clean.architecture.model.HttpRequest
+import com.example.clean.architecture.model.HttpResponse
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatusCode
+import org.springframework.stereotype.Component
 
-@Configuration
-class HealthCheckConfig {
-    @Bean
-    fun healthCheck(): Supplier<HealthStatus> = Supplier {
-        HealthStatus(status = "UP")
+private val logger = KotlinLogging.logger {}
+
+/**
+ * Phase 1 priming: pre-loads classes and warms serialization caches.
+ * Performs NO network or filesystem I/O — safe inside a SnapStart snapshot.
+ */
+@Component
+class ClassPreloader(
+    private val objectMapper: ObjectMapper,
+) {
+    fun primeClasses() {
+        logger.info { "Phase 1 priming: pre-loading classes and warming serialization caches" }
+        runCatching {
+            // Round-trip a sample request/response through the Jackson converters used by
+            // Spring Cloud Function. This forces class loading + serializer cache population
+            // without any I/O.
+            val sampleRequest = HttpRequest(
+                method = HttpMethod.POST,
+                headers = mapOf("Content-Type" to "application/json"),
+                path = "/docs-flow",
+                queryParameters = emptyMap(),
+                body = null,
+            )
+            val requestJson = objectMapper.writeValueAsString(sampleRequest)
+            objectMapper.readValue(requestJson, HttpRequest::class.java)
+
+            val sampleResponse = HttpResponse(
+                httpStatusCode = HttpStatusCode.valueOf(200),
+                body = """{"status":"ok"}""",
+            )
+            objectMapper.writeValueAsString(sampleResponse)
+
+            logger.info { "Phase 1 priming completed successfully" }
+        }.onFailure { e ->
+            logger.warn(e) { "Phase 1 priming encountered non-fatal error" }
+        }
     }
 }
-
-data class HealthStatus(val status: String)
 ```
 
-**Design Decision**: The health check is a `Supplier<HealthStatus>` (no input) rather than a `Function<Request, Response>`. This keeps it simple — it only needs to confirm the Spring context loaded successfully. The fact that the function can be invoked at all proves the application is operational.
+**Design Decision**: Phase 1 is intentionally network-free. Because it only touches the JVM (class loading) and in-memory serializers, its result is safe to capture in a SnapStart snapshot and safe to repeat in `afterRestore` and Azure warmup (Requirements 2.4, 2.5, 2.6).
 
-### 2. Application Primer (Application Layer)
+#### 1b. Phase 2 — `Warmable` SPI + `WarmupCoordinator` (connection/credential warmup)
 
-A reusable component that pre-loads and initializes application classes to reduce cold start latency. Placed in the application layer so both AWS and Azure can invoke it.
+`Warmable` is a separate application-layer SPI (a functional interface with a `warmUp()` operation). Infrastructure adapters optionally implement it to open their network connection and/or fetch their managed-identity token. The domain ports (`ObjectStorageInterface`, `DocumentNotificationInterface`) are deliberately **not** touched (Requirement 2.9).
 
 ```kotlin
-// software/application/src/main/kotlin/com/example/clean/architecture/service/ApplicationPrimer.kt
-package com.example.clean.architecture.service
+// software/application/src/main/kotlin/com/example/clean/architecture/warmup/Warmable.kt
+package com.example.clean.architecture.warmup
+
+/**
+ * Phase 2 priming SPI. Infrastructure adapters MAY implement this to open their
+ * network connection and/or fetch their managed-identity token before serving traffic.
+ *
+ * This is intentionally separate from the domain ports (ObjectStorageInterface,
+ * DocumentNotificationInterface), which MUST NOT declare warmUp().
+ */
+fun interface Warmable {
+    fun warmUp()
+}
+```
+
+A coordinator receives every `Warmable` bean Spring discovered and warms each one, isolating failures so a single failing adapter does not abort the rest.
+
+```kotlin
+// software/application/src/main/kotlin/com/example/clean/architecture/warmup/WarmupCoordinator.kt
+package com.example.clean.architecture.warmup
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Phase 2 priming: iterates all Warmable adapters and warms each one.
+ * Each warmUp() is wrapped in runCatching so one failure does not abort the rest.
+ */
 @Component
-class ApplicationPrimer(
-    private val handleDocsFlowRequest: HandleDocsFlowRequest,
+class WarmupCoordinator(
+    private val warmables: List<Warmable>,
 ) {
-    fun prime() {
-        logger.info { "Priming application: pre-loading classes and warming up dependencies" }
-        // Force class loading of key application components
-        runCatching {
-            // Touch the request handler to ensure its dependency tree is loaded
-            handleDocsFlowRequest.javaClass.declaredMethods
-            // Force Jackson ObjectMapper initialization
-            Class.forName("com.fasterxml.jackson.databind.ObjectMapper")
-            logger.info { "Application priming completed successfully" }
-        }.onFailure { e ->
-            logger.warn(e) { "Application priming encountered non-fatal error" }
+    fun warmUpConnections() {
+        logger.info { "Phase 2 priming: warming up ${warmables.size} connection(s)/credential(s)" }
+        warmables.forEach { warmable ->
+            runCatching { warmable.warmUp() }
+                .onFailure { e -> logger.warn(e) { "Warmable failed to warm up (non-fatal): ${warmable.javaClass.simpleName}" } }
         }
     }
 }
 ```
 
-**Design Decision**: Priming is intentionally lightweight — it forces class loading of the dependency graph without making actual I/O calls. This is safe to run during SnapStart's `beforeCheckpoint` and Azure's `@WarmupTrigger`.
+**Design Decision**: Injecting `List<Warmable>` (Spring collects all beans implementing the interface; `ObjectProvider<Warmable>` is an equivalent lazy alternative) keeps the coordinator agnostic of which adapters exist. If no adapter implements `Warmable`, the list is empty and Phase 2 is a no-op. Each call is isolated with `runCatching` so a failing warmup (e.g., a transient network error) degrades cold-start performance but never blocks startup (Requirements 2.8, 2.10).
 
-### 3. AWS Health Check Lambda Configuration (CDK-AWS)
+#### 1c. Infra adapters implementing `Warmable`
 
-A new Lambda function definition in the CDK stack with:
-- `SPRING_CLOUD_FUNCTION_DEFINITION` set to `healthCheck`
-- API Gateway resource at `/health` with GET method and API key required
-- Same role and permissions as existing functions
-
-### 4. AWS SnapStart + ARM64 + Version Alias (CDK-AWS)
-
-Changes to all Lambda function definitions:
-- `architectures` set to `["arm64"]`
-- `snap_start` with `apply_on = "PublishedVersions"`
-- A `LambdaAlias` or published version resource for API Gateway to invoke
-
-### 5. Azure Health Check Function (Infra-Azure)
+Adapters add `Warmable` to their existing interface list and perform a single low-cost call (Requirement 2.10):
 
 ```kotlin
-// In DocsFlowFunctions.kt or a new HealthFunctions.kt
-@FunctionName("Health")
-fun health(
-    @HttpTrigger(
-        name = "request",
-        methods = [HttpMethod.GET],
-        authLevel = AuthorizationLevel.FUNCTION,
-        route = "health"
-    ) request: HttpRequestMessage<Void>,
-    context: ExecutionContext,
-): HttpResponseMessage {
-    return runCatching {
-        request.createResponseBuilder(HttpStatus.OK)
-            .header("Content-Type", "application/json")
-            .body("""{"status":"UP"}""")
-            .build()
-    }.getOrElse {
-        request.createResponseBuilder(HttpStatus.SERVICE_UNAVAILABLE)
-            .header("Content-Type", "application/json")
-            .body("""{"status":"DOWN"}""")
-            .build()
+// infra-aws: S3ObjectStore additionally implements Warmable
+class S3ObjectStore(
+    @Value("\${aws.s3.bucket-name}") private val bucketName: String,
+    private val s3Client: S3Client,
+) : ObjectStorageInterface, Warmable {
+    override fun warmUp() = runBlocking {
+        s3Client.headBucket { bucket = bucketName }   // opens connection, no payload
+        Unit
+    }
+    // ... existing save()/generateSecureAccessUri() unchanged
+}
+
+// infra-aws: SESEmailSender additionally implements Warmable
+class SESEmailSender(/* ... */) : DocumentNotificationInterface, Warmable {
+    override fun warmUp() = runBlocking {
+        sesClient.getSendQuota()   // credential + connection warmup, NOT a real send
+        Unit
+    }
+}
+
+// infra-azure: BlobStorageObjectStore additionally implements Warmable
+class BlobStorageObjectStore(/* ... */) : ObjectStorageInterface, Warmable {
+    override fun warmUp() {
+        // exists()/getProperties() forces the DefaultAzureCredential managed-identity token fetch
+        containerClient.exists()
+    }
+}
+
+// infra-azure (optional): ACSEmailSender additionally implements Warmable
+//   override fun warmUp() { /* credential warmup only — NOT a real send */ }
+```
+
+**Clean-architecture note**: `Warmable` lives in the application layer alongside the domain ports but is a distinct SPI. The domain ports `ObjectStorageInterface` and `DocumentNotificationInterface` keep their existing operations only — they do not declare `warmUp()` (Requirement 2.9).
+
+### 2. AWS SnapStart + ARM64 + Version Alias (CDK-AWS)
+
+Changes to all Lambda function definitions in the AWS CDK stack (Requirements 2.1, 2.2, 2.3):
+- `architectures` set to `["arm64"]`
+- `snap_start` with `apply_on = "PublishedVersions"`
+- A published Lambda version on each deployment, with the API Gateway integration wired to invoke the published version alias (required for SnapStart to take effect)
+
+### 3. AWS SnapStart Priming Hook (Infra-AWS)
+
+The hook implements `org.crac.Resource` and splits the two phases across the CRaC lifecycle:
+
+- `beforeCheckpoint()` runs at publish time, before the snapshot is frozen, so it MUST run **Phase 1 only**. Connections and tokens are unsafe to snapshot (Requirements 2.7, 2.11).
+- `afterRestore()` runs on the serving host after thaw, so it runs **Phase 2** to (re)establish connections and fetch a fresh managed-identity token (Requirement 2.12).
+
+```kotlin
+import com.example.clean.architecture.service.ClassPreloader
+import com.example.clean.architecture.warmup.WarmupCoordinator
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.crac.Context
+import org.crac.Core
+import org.crac.Resource
+import org.springframework.stereotype.Component
+
+private val logger = KotlinLogging.logger {}
+
+@Component
+class SnapStartPrimingHook(
+    private val classPreloader: ClassPreloader,
+    private val warmupCoordinator: WarmupCoordinator,
+) : Resource {
+    init {
+        Core.getGlobalContext().register(this)
+    }
+
+    override fun beforeCheckpoint(context: Context<out Resource>) {
+        // Phase 1 ONLY — network-free. MUST NOT warm connections/credentials here:
+        // anything opened now is invalid once the snapshot is restored on another host.
+        logger.info { "beforeCheckpoint: running Phase 1 class preload only" }
+        classPreloader.primeClasses()
+    }
+
+    override fun afterRestore(context: Context<out Resource>) {
+        // Phase 2 — re-establish connections and fetch credentials on the serving host.
+        logger.info { "afterRestore: running Phase 2 connection/credential warmup" }
+        warmupCoordinator.warmUpConnections()
     }
 }
 ```
 
-### 6. Azure Warmup Trigger (Infra-Azure)
+### 4. Azure Warmup Trigger (Infra-Azure)
+
+The `@WarmupTrigger` runs on every fresh instance on the real serving host before it takes traffic, so it safely runs **both** phases (Requirement 2.13). This trigger is only available on the Premium and Flex Consumption plans, which is why the Flex Consumption move (Requirement 1) is its prerequisite.
 
 ```kotlin
 @FunctionName("Warmup")
@@ -193,247 +283,104 @@ fun warmup(
     @WarmupTrigger(name = "warmupTrigger") warmupContext: String,
     context: ExecutionContext,
 ) {
-    logger.info { "Warmup trigger invoked, running application priming" }
-    applicationPrimer.prime()
+    logger.info { "Warmup trigger invoked: running Phase 1 (class preload) and Phase 2 (connection/credential warmup)" }
+    classPreloader.primeClasses()         // Phase 1: network-free
+    warmupCoordinator.warmUpConnections() // Phase 2: open connections / fetch managed-identity token
 }
 ```
 
-### 7. AWS Priming Hook (Infra-AWS)
+`classPreloader` and `warmupCoordinator` are injected as `private val` dependencies from the application layer.
 
-For SnapStart, priming runs via CRaC's `beforeCheckpoint`:
+### 5. Azure Flex Consumption Plan (CDK-Azure)
 
-```kotlin
-import org.crac.Context
-import org.crac.Core
-import org.crac.Resource
+The Azure CDK stack changes the hosting plan from Consumption to Flex Consumption (Requirement 1):
 
-@Component
-class SnapStartPrimingHook(
-    private val applicationPrimer: ApplicationPrimer,
-) : Resource {
-    init {
-        Core.getGlobalContext().register(this)
-    }
+- Service plan SKU changes from `Y1` to `FC1` (Requirement 1.1).
+- The function app uses the flex-compatible resource type `azurerm_linux_function_app_flex_consumption` instead of `azurerm_linux_function_app` (Requirement 1.2).
+- All existing application settings (`APPINSIGHTS_INSTRUMENTATIONKEY`, `MAIN_CLASS`, `TriggerBlobStorage__accountName`, `TriggerBlobStorage__credential`, `WEBSITE_RUN_FROM_PACKAGE`, `ACS_ENDPOINT`), the SystemAssigned managed identity, and all role assignments (Storage Blob Data Contributor, Storage Account Contributor, Storage Queue Data Contributor, and the custom ACS role) are explicitly preserved in the stack so the plan move does not drop them (Requirement 1.4).
+- The Linux OS type and the **existing Java 21** application stack are retained — no JVM version change (Requirement 1.5).
 
-    override fun beforeCheckpoint(context: Context<out Resource>) {
-        applicationPrimer.prime()
-    }
-
-    override fun afterRestore(context: Context<out Resource>) {
-        // No-op: application is already primed
-    }
-}
-```
-
-### 8. Pipeline Health Check Steps
-
-**AWS Pipeline** — After `terraform apply`:
-```yaml
-- name: Retrieve API Gateway URL and API Key
-  run: |
-    API_URL=$(terraform output -raw api_gateway_url)
-    API_KEY_ID=$(aws apigateway get-api-keys --name-query "DocsFlow" --include-values --query 'items[0].value' --output text)
-    echo "API_URL=$API_URL" >> $GITHUB_ENV
-    echo "API_KEY=$API_KEY_ID" >> $GITHUB_ENV
-
-- name: Health Check
-  run: |
-    for i in 1 2 3; do
-      STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 \
-        -H "x-api-key: $API_KEY" "$API_URL/health")
-      if [ "$STATUS" = "200" ]; then exit 0; fi
-      sleep 10
-    done
-    exit 1
-```
-
-**Azure Pipeline** — After `azureFunctionsDeploy`:
-```yaml
-- name: Retrieve Function URL and Key
-  run: |
-    FUNC_URL=$(az functionapp show --name docs-flow-spring-clean-architecture-fun \
-      --resource-group $AZURE_RESOURCE_GROUP_NAME --query defaultHostName -o tsv)
-    FUNC_KEY=$(az functionapp keys list --name docs-flow-spring-clean-architecture-fun \
-      --resource-group $AZURE_RESOURCE_GROUP_NAME --query functionKeys.default -o tsv)
-    echo "FUNC_URL=https://$FUNC_URL" >> $GITHUB_ENV
-    echo "FUNC_KEY=$FUNC_KEY" >> $GITHUB_ENV
-
-- name: Health Check
-  run: |
-    for i in 1 2 3; do
-      STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 \
-        "$FUNC_URL/api/health?code=$FUNC_KEY")
-      if [ "$STATUS" = "200" ]; then exit 0; fi
-      sleep 10
-    done
-    exit 1
-```
-
-### 9. Deployment Checkpoints
-
-The reusable workflow files will be restructured into three sequential jobs:
-
-| Checkpoint | Deploys | Verifies |
-|-----------|---------|----------|
-| 1 | Email config + Health check infra | Health check returns 200 |
-| 2 | Flex Consumption + Kotlin 2.3.20 + Dependencies + JVM 25 | Health check returns 200 |
-| 3 | ARM64 + SnapStart + Priming | Health check returns 200 |
-
-Each checkpoint is a separate GitHub Actions job with `needs:` dependency on the previous checkpoint.
+**Design Decision**: Switching the service-plan SKU and the function-app resource type is a destroy-and-recreate operation in Terraform. The CDK stack declares every app setting, identity, and role assignment explicitly so the recreated function app comes back with identical configuration and no drift.
 
 ## Data Models
 
-### HealthStatus Response
+### Infrastructure Configuration Changes Summary
+
+| Configuration | Current | Target | Requirement |
+|--------------|---------|--------|-------------|
+| Azure service plan SKU | `Y1` (Consumption) | `FC1` (Flex Consumption) | 1.1 |
+| Azure function-app resource type | `azurerm_linux_function_app` | `azurerm_linux_function_app_flex_consumption` | 1.2 |
+| Azure OS type | Linux | Linux (unchanged) | 1.5 |
+| Azure Java stack | Java 21 | Java 21 (unchanged) | 1.5 |
+| Lambda architecture | x86_64 (default) | `arm64` | 2.1 |
+| SnapStart | disabled | enabled (`PublishedVersions`) | 2.2 |
+| Lambda version/alias | unversioned | published version + API Gateway alias | 2.3 |
+
+### Sample Priming Model Values
+
+Phase 1 round-trips the existing `HttpRequest`/`HttpResponse` application models (no new data model is introduced):
 
 ```kotlin
-data class HealthStatus(
-    val status: String  // "UP" or "DOWN"
+HttpRequest(
+    method = HttpMethod.POST,
+    headers = mapOf("Content-Type" to "application/json"),
+    path = "/docs-flow",
+    queryParameters = emptyMap(),
+    body = null,
 )
 ```
-
-JSON representation:
-```json
-{"status": "UP"}
-```
-
-### Terraform Outputs (new)
-
-The CDK stacks will export outputs needed by the pipeline health check steps:
-
-**AWS CDK Stack outputs:**
-- `api_gateway_url` — The base URL of the API Gateway stage (e.g., `https://abc123.execute-api.eu-west-1.amazonaws.com/demo`)
-- `api_key_name` — The name of the API key for lookup via AWS CLI
-
-**Azure CDK Stack outputs:**
-- `function_app_name` — The Azure Function App name for CLI queries
-- `resource_group_name` — The resource group for CLI queries
-
-### Pipeline Environment Variables
-
-| Variable | Source | Used By |
-|----------|--------|---------|
-| `AWS_SENDER_EMAIL` | GitHub Secret | AWS Lambda env var (SES sender) |
-| `AZURE_SENDER_EMAIL` | GitHub Secret | Azure app setting (ACS sender) |
-| `RECIPIENT_EMAIL` | GitHub Secret | AWS Lambda env var, Azure app setting (shared) |
-| `API_URL` | Terraform output + runtime | AWS health check step |
-| `API_KEY` | AWS CLI at runtime | AWS health check step |
-| `FUNC_URL` | Azure CLI at runtime | Azure health check step |
-| `FUNC_KEY` | Azure CLI at runtime | Azure health check step |
-
-### Build Configuration Changes Summary
-
-| Configuration | Current | Target |
-|--------------|---------|--------|
-| Kotlin version | 2.1.0 | 2.3.20 |
-| JVM target | 21 | 25 |
-| Spring Boot | 3.3.9 | 3.5.x (latest stable) |
-| Java toolchain | 21 | 25 |
-| AWS Lambda runtime | java21 | java25 |
-| Azure Java version | 21 | 25 |
-| Azure SKU | Y1 | FC1 |
-| Lambda architecture | x86_64 (default) | arm64 |
-| SnapStart | disabled | enabled (PublishedVersions) |
 
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-> **Note:** This feature is primarily infrastructure configuration, CI/CD pipelines, build configuration, and side-effect-only operations. Full property-based testing does not strongly apply here. The properties below capture the key invariants that can be verified with lightweight tests.
+> **Note:** Most of this feature is declarative infrastructure (Azure Flex Consumption SKU/resource type, AWS ARM64/SnapStart) verified with CDK synth tests, plus example-based wiring tests. The two properties below capture the priming **safety invariants** that hold across any application state and any set of registered `Warmable` adapters — the parts where behavior must be guaranteed regardless of configuration.
 
-### Property 1: Health check idempotency
+### Property 1: Priming safety and failure isolation
 
-*For any* number of sequential invocations of the health check endpoint on a healthy deployment, the response SHALL always be HTTP 200 with `{"status":"UP"}` — invoking the health check N times produces the same result each time.
+*For any* state of the application's dependency graph and *for any* set of registered `Warmable` adapters:
+- `ClassPreloader.primeClasses()` (Phase 1) SHALL complete without throwing an exception that propagates to the caller, regardless of the dependency-graph state — it never prevents application startup, and it performs no network or filesystem I/O while round-tripping the sample `HttpRequest`/`HttpResponse`; and
+- each `Warmable.warmUp()` invocation orchestrated by `WarmupCoordinator` (Phase 2) SHALL be isolated such that a failure in one adapter's warmup is caught and does not abort the warmup of the remaining adapters nor propagate to the caller.
 
-**Validates: Requirements 2.1, 3.1**
+**Validates: Requirements 2.4, 2.5, 2.8, 2.10**
 
-### Property 2: Priming safety
+### Property 2: Checkpoint phase isolation
 
-*For any* state of the application's dependency graph (including cases where class loading encounters missing or broken classes), the `ApplicationPrimer.prime()` method SHALL complete without throwing an exception that propagates to the caller, ensuring it never prevents application startup.
+*For any* set of registered `Warmable` adapters, when `SnapStartPrimingHook.beforeCheckpoint()` executes, it SHALL invoke `ClassPreloader.primeClasses()` (Phase 1) and SHALL NOT invoke any `Warmable.warmUp()` / `WarmupCoordinator.warmUpConnections()` (Phase 2) — connection and credential warmup never runs inside the SnapStart snapshot.
 
-**Validates: Requirements 10.4, 10.5**
-
-### Property 3: Deployment checkpoint ordering
-
-*For any* deployment pipeline execution, Deployment Checkpoint N+1 SHALL never execute unless Deployment Checkpoint N has passed its health check verification — the pipeline enforces strict sequential ordering with no checkpoint skipping.
-
-**Validates: Requirements 11.4, 11.5**
-
-### Property 4: Configuration completeness
-
-*For any* configuration file in the deployed application (AWS and Azure `application.properties`), the file SHALL NOT contain the literal string `"REPLACEME"` or any other placeholder value after deployment completes.
-
-**Validates: Requirements 1.5**
+**Validates: Requirements 2.7, 2.11**
 
 ## Error Handling
-
-### Health Check Endpoint Errors
-
-| Scenario | AWS Behavior | Azure Behavior |
-|----------|-------------|----------------|
-| Spring context loads successfully | 200 `{"status":"UP"}` | 200 `{"status":"UP"}` |
-| Internal error during invocation | 503 `{"status":"DOWN"}` | 503 `{"status":"DOWN"}` |
-| Lambda/Function timeout (>10s) | API Gateway returns 504 | Azure returns 500 |
-
-**Implementation**: The health check function wraps its logic in `runCatching`. If the Spring context failed to load, the function bean won't exist and the invocation itself will fail, producing a 5xx response from the platform.
-
-### Pipeline Health Check Failures
-
-| Scenario | Behavior |
-|----------|----------|
-| Health check returns non-200 | Retry up to 3 times with 10s delay |
-| Connection timeout (>30s) | Treat as failed attempt, retry |
-| All 3 retries exhausted | Fail the workflow run, report last status code |
-| DNS resolution failure | Treat as failed attempt, retry |
-
-**Design Decision**: 3 retries with 10-second delays gives the function up to ~90 seconds total to become available after deployment. This accounts for cold start time, especially before SnapStart is enabled in Checkpoint 1.
 
 ### Priming Errors
 
 | Scenario | Behavior |
 |----------|----------|
-| Class loading fails during priming | Log warning, continue (non-fatal) |
-| Priming throws unexpected exception | Caught by `runCatching`, logged, application continues |
-| SnapStart `beforeCheckpoint` fails | Lambda snapshot creation fails, deployment rolls back |
+| Class/serialization warmup fails during `primeClasses()` (Phase 1) | Caught by `runCatching`, logged as warning, application continues (non-fatal) |
+| A single `Warmable.warmUp()` fails (Phase 2) | Caught per-adapter by `WarmupCoordinator`, logged as warning, remaining adapters still warmed; never propagates |
+| `beforeCheckpoint` runs Phase 1 only | By design, no connection/credential warmup occurs inside the snapshot (Requirement 2.11) |
+| `afterRestore` / Azure warmup Phase 2 fails entirely | Logged, application continues; first real request re-establishes connections lazily (slower cold start, not an outage) |
 
-**Design Decision**: Priming failures are non-fatal. The application should still function even if priming doesn't complete — it will just have a slower cold start. The exception is SnapStart's `beforeCheckpoint` — if that throws, AWS won't create the snapshot, which is the correct behavior (fail fast during deployment, not at runtime).
-
-### Deployment Checkpoint Failures
-
-| Scenario | Behavior |
-|----------|----------|
-| Checkpoint 1 health check fails | Pipeline fails, Checkpoints 2 and 3 do not execute |
-| Checkpoint 2 health check fails | Pipeline fails, Checkpoint 3 does not execute |
-| Checkpoint 3 health check fails | Pipeline fails, reports which checkpoint failed |
-| Terraform apply fails | Job fails immediately (no health check attempted) |
+**Design Decision**: Both phases are non-fatal. Phase 1 (`primeClasses()`) is wrapped in `runCatching` and Phase 2 isolates each `Warmable` so one adapter's failure does not abort the others. The application still functions even if priming doesn't complete — it just has a slower cold start. Connection/credential warmup is deliberately excluded from `beforeCheckpoint` because connections and managed-identity tokens captured at checkpoint time are invalid once the snapshot is restored on a different host.
 
 ### Azure Flex Consumption Migration Errors
 
 | Scenario | Behavior |
 |----------|----------|
-| FC1 SKU not available in region | Terraform apply fails with clear error |
-| Resource type mismatch | Terraform plan shows destroy+recreate (expected for plan change) |
-| App settings lost during migration | CDK stack explicitly declares all settings (no drift) |
-
-### Dependency Upgrade Errors
-
-| Scenario | Behavior |
-|----------|----------|
-| Binary incompatibility | Build fails at compile time with clear error |
-| Runtime incompatibility | Tests fail, caught by `./gradlew build` |
-| Deprecated API usage | Compiler warnings (Requirement 8.29 requires zero deprecation warnings) |
+| FC1 SKU not available in region | Terraform apply fails with a clear error |
+| Resource type change (`azurerm_linux_function_app` → flex consumption) | Terraform plan shows destroy+recreate (expected for the plan move) |
+| App settings / identity / roles lost during migration | CDK stack explicitly declares all settings, the SystemAssigned identity, and all role assignments (no drift) |
 
 ## Testing Strategy
 
-### Why Property-Based Testing Does NOT Apply
+### Why Property-Based Testing Mostly Does NOT Apply
 
 This feature is primarily composed of:
-- **Infrastructure as Code** (CDK stacks in Kotlin generating Terraform JSON)
-- **CI/CD pipeline configuration** (GitHub Actions YAML)
-- **Build configuration** (Gradle version strings)
-- **Simple static responses** (health check returns fixed JSON)
-- **Side-effect-only operations** (priming = class loading)
+- **Infrastructure as Code** (CDK stacks in Kotlin generating Terraform JSON for Azure Flex Consumption and AWS ARM64/SnapStart)
+- **Side-effect-only operations** (priming = class loading + connection/credential warmup)
+- **Wiring** (which hook/trigger calls which priming phase)
 
-None of these have behavior that varies meaningfully with input. The health check always returns the same response. Priming always loads the same classes. CDK stacks are declarative configuration. There is no input space to explore with property-based testing.
+These are declarative configuration or fixed side-effects with no meaningful input space to explore. The two priming **safety invariants** (Correctness Properties 1 and 2) are the exception: they must hold for any application state and any set of registered `Warmable` adapters, so they are expressed as properties and exercised with mocked collaborators / varying adapter sets. Everything else is covered by example-based unit tests and CDK synth tests.
 
 ### Testing Approach
 
@@ -441,66 +388,67 @@ None of these have behavior that varies meaningfully with input. The health chec
 
 | Test | What It Verifies |
 |------|-----------------|
-| `HealthCheckFunction` returns `HealthStatus("UP")` | Health check bean works correctly |
-| `ApplicationPrimer.prime()` completes without exception | Priming logic is safe |
-| `ApplicationPrimer.prime()` logs success message | Priming executes expected path |
+| `ClassPreloader.primeClasses()` completes without throwing | Phase 1 priming is safe (Property 1, Requirement 2.4) |
+| `ClassPreloader.primeClasses()` performs no network/filesystem I/O | Phase 1 is network-free (Property 1, Requirement 2.4) — verified with mocked collaborators asserting no I/O calls |
+| `ClassPreloader.primeClasses()` round-trips sample `HttpRequest`/`HttpResponse` | Serialization caches are warmed (Property 1, Requirement 2.5) |
+| `WarmupCoordinator.warmUpConnections()` calls `warmUp()` on every registered `Warmable` | Phase 2 coordination works (Requirement 2.8) |
+| `WarmupCoordinator` isolates a failing `Warmable` (one throws, others still warmed) | Failure isolation across any set of adapters (Property 1, Requirement 2.10) |
 
 #### Unit Tests (Infrastructure Layer — AWS)
 
 | Test | What It Verifies |
 |------|-----------------|
-| Health check Lambda handler returns 200 with `{"status":"UP"}` | AWS adapter correctly maps response |
-| Health check Lambda handler returns 503 on error | Error path works |
-| `SnapStartPrimingHook.beforeCheckpoint()` invokes `ApplicationPrimer.prime()` | SnapStart integration |
+| `S3ObjectStore.warmUp()` invokes `headBucket` once (mocked client) | Phase 2 opens the S3 connection (Requirement 2.10) |
+| `SESEmailSender.warmUp()` invokes `getSendQuota` once and does NOT send an email (mocked client) | Phase 2 credential/connection warmup, not a real send (Requirement 2.10) |
+| `SnapStartPrimingHook.beforeCheckpoint()` calls `primeClasses()` and NOT any `Warmable`/`warmUpConnections()` | Checkpoint phase isolation (Property 2, Requirements 2.7, 2.11) |
+| `SnapStartPrimingHook.afterRestore()` calls `WarmupCoordinator.warmUpConnections()` | Phase 2 runs after thaw (Requirement 2.12) |
 
 #### Unit Tests (Infrastructure Layer — Azure)
 
 | Test | What It Verifies |
 |------|-----------------|
-| Health function returns 200 with `{"status":"UP"}` | Azure adapter correctly maps response |
-| Health function returns 503 on error | Error path works |
-| Warmup function invokes `ApplicationPrimer.prime()` | Warmup trigger integration |
+| `BlobStorageObjectStore.warmUp()` invokes `exists()`/`getProperties()` once (mocked client) | Phase 2 forces the `DefaultAzureCredential` token fetch (Requirement 2.10) |
+| Warmup function invokes both `ClassPreloader.primeClasses()` and `WarmupCoordinator.warmUpConnections()` | Azure warmup runs both phases (Requirement 2.13) |
 
-#### Integration Tests (CDK Stacks)
+#### CDK Synth Tests (Infrastructure)
 
 | Test | What It Verifies |
 |------|-----------------|
 | AWS CDK synthesizes valid Terraform JSON | Infrastructure definition is correct |
+| AWS Terraform JSON sets `architectures = ["arm64"]` on every Lambda | ARM64 is configured (Requirement 2.1) |
+| AWS Terraform JSON sets `snap_start.apply_on = "PublishedVersions"` on every Lambda | SnapStart is enabled (Requirement 2.2) |
+| AWS Terraform JSON publishes a version and wires API Gateway to the published alias | Published-version integration (Requirement 2.3) |
 | Azure CDK synthesizes valid Terraform JSON | Infrastructure definition is correct |
-| AWS Terraform JSON contains `/health` API Gateway resource | Health endpoint is provisioned |
-| AWS Terraform JSON contains arm64 architecture | ARM64 is configured |
-| AWS Terraform JSON contains snap_start configuration | SnapStart is enabled |
-| Azure Terraform JSON contains FC1 SKU | Flex Consumption is configured |
-| Azure Terraform JSON preserves all app settings | No regression in settings |
+| Azure Terraform JSON uses the `FC1` service-plan SKU | Flex Consumption SKU is configured (Requirement 1.1) |
+| Azure Terraform JSON uses `azurerm_linux_function_app_flex_consumption` | Flex-compatible resource type (Requirement 1.2) |
+| Azure Terraform JSON preserves all app settings, SystemAssigned identity, and role assignments | No regression in settings/identity/roles (Requirement 1.4) |
+| Azure Terraform JSON retains Linux OS type and Java 21 stack | OS/runtime retained (Requirement 1.5) |
 
-#### Smoke Tests (Configuration)
+#### Post-Deployment Verification (no dedicated health endpoint)
 
-| Test | What It Verifies |
+Verification uses the **existing `docs-flow` endpoint** — there is no `/health` endpoint in this feature.
+
+| Check | What It Verifies |
 |------|-----------------|
-| `application.properties` (AWS) has no "REPLACEME" | Email config is parameterized |
-| `application.properties` (Azure) has no "REPLACEME" | Email config is parameterized |
-| `build.gradle.kts` specifies Kotlin 2.3.20 | Kotlin version is correct |
-| `build.gradle.kts` specifies JVM 25 | JVM target is correct |
-| Workflow YAML specifies java-version 25 | CI/CD uses correct JDK |
-
-#### End-to-End Tests (Post-Deployment)
-
-| Test | What It Verifies |
-|------|-----------------|
-| `curl $API_URL/health -H "x-api-key: $KEY"` returns 200 | AWS deployment is operational |
-| `curl $FUNC_URL/api/health?code=$KEY` returns 200 | Azure deployment is operational |
+| Authenticated request to the AWS `docs-flow` endpoint (API key) succeeds within ~10s on cold start | ARM64 + SnapStart + priming restore and serve correctly (Requirement 2.14) |
+| Authenticated request to the Azure `docs-flow` endpoint (function key) succeeds | Azure Flex Consumption deployment is operational (Requirements 1.3, 2.14) |
 
 ### Test Framework
 
 - **JUnit 5** with Kotlin test DSL for unit tests
-- **MockK** for mocking dependencies (relaxed mocks by default)
+- **MockK** for mocking dependencies (relaxed mocks by default), with `coEvery`/`coVerify` for suspend functions
 - **Given-When-Then** naming convention for test methods
-- **CDK synth verification** by running the CDK app and inspecting generated JSON
-- **curl** in pipeline scripts for end-to-end health checks
+- **CDK synth verification** by running the CDK app and inspecting the generated Terraform JSON
+
+### Property Test Configuration
+
+Where the two correctness properties are exercised as property/invariant tests (varying the set of registered `Warmable` adapters and dependency-graph state), each test:
+- runs a minimum of 100 iterations, and
+- is tagged with a comment referencing the design property, e.g.
+  `// Feature: deployment-upgrades-and-healthcheck, Property 1: Priming safety and failure isolation`
 
 ### Test Execution Order
 
-1. Unit tests run during `./gradlew build` (pre-deployment)
+1. Unit tests run during `./gradlew build` (compiles the priming components and runs their tests with zero failures — Requirement 2.15)
 2. CDK synth tests run during `./gradlew :cdk-aws:run` and `./gradlew :cdk-azure:run`
-3. End-to-end health checks run post-deployment in each checkpoint
-
+3. Post-deployment verification hits the existing `docs-flow` endpoint after each cloud deploy

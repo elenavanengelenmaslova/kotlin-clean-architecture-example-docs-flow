@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - '.kiro/**'
       - 'cdk/azure/**'
       - 'software/infrastructure/azure/**'
       - ".github/workflows/**-azure.yml"
