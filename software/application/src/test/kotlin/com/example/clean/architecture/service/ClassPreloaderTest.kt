@@ -1,23 +1,19 @@
 package com.example.clean.architecture.service
 
 import com.example.clean.architecture.model.HttpRequest
-import com.example.clean.architecture.model.HttpResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.mockk.clearMocks
-import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
+import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.RepetitionInfo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
-import org.springframework.http.HttpMethod
 import java.io.IOException
 import kotlin.random.Random
-import kotlin.test.assertTrue
 
 /**
  * Unit + property tests for [ClassPreloader].
@@ -26,7 +22,7 @@ import kotlin.test.assertTrue
  *
  * Property 1: Priming safety and failure isolation — the Phase 1 side of the property:
  * `primeClasses()` completes without throwing regardless of dependency-graph state and
- * performs no network/filesystem I/O while round-tripping the sample request/response.
+ * round-trips the sample request/response through an in-memory serializer (no network/filesystem I/O).
  */
 class ClassPreloaderTest {
 
@@ -40,51 +36,31 @@ class ClassPreloaderTest {
     }
 
     @Test
-    fun `Given a mocked ObjectMapper When primeClasses is invoked Then it round-trips the sample HttpRequest and HttpResponse`() {
-        // Given a mocked serializer that records what is serialized/deserialized.
-        val objectMapper = mockk<ObjectMapper>()
-        val serialized = mutableListOf<Any>()
-        val sampleRoundTripped = HttpRequest(
-            method = HttpMethod.POST,
-            headers = mapOf("Content-Type" to "application/json"),
-            path = "/docs-flow",
-            queryParameters = emptyMap(),
-            body = null,
-        )
-        every { objectMapper.writeValueAsString(capture(serialized)) } returns "{}"
-        every { objectMapper.readValue(any<String>(), HttpRequest::class.java) } returns sampleRoundTripped
+    fun `Given a real ObjectMapper When primeClasses is invoked Then it round-trips the Spring HTTP wrapper types successfully`() {
+        // Regression guard for the InvalidDefinitionException on org.springframework.http.HttpMethod /
+        // HttpStatusCode: ClassPreloader builds a dedicated mapper copy with (de)serializers for those
+        // Spring types, so the sample HttpRequest (carrying HttpMethod) is serialized AND deserialized,
+        // and the sample HttpResponse (carrying HttpStatusCode) is serialized — i.e. the round-trip
+        // completes past HttpMethod serialization rather than failing and being swallowed.
+
+        // Given a strict mock whose copy() yields a real, spyable mapper that the preloader configures.
+        val injected = mockk<ObjectMapper>()
+        val primingMapper = spyk(jacksonObjectMapper())
+        every { injected.copy() } returns primingMapper
 
         // When
-        ClassPreloader(objectMapper).primeClasses()
+        ClassPreloader(injected).primeClasses()
 
-        // Then the request is serialized then deserialized (round-trip) and the response is serialized
-        // (Requirement 2.5 — serialization caches warmed for both request and response).
-        verify(exactly = 1) { objectMapper.readValue(any<String>(), HttpRequest::class.java) }
-        verify(exactly = 2) { objectMapper.writeValueAsString(any()) }
-        assertTrue(serialized.any { it is HttpRequest }, "expected the sample HttpRequest to be serialized")
-        assertTrue(serialized.any { it is HttpResponse }, "expected the sample HttpResponse to be serialized")
+        // Then both the request and response were serialized (2 writes) and the request was read back
+        // (1 read) — proving the Spring HTTP types serialize successfully (Requirement 2.5).
+        verify(exactly = 2) { primingMapper.writeValueAsString(any()) }
+        verify(exactly = 1) { primingMapper.readValue(any<String>(), HttpRequest::class.java) }
 
-        clearMocks(objectMapper)
-    }
+        // And the shared/injected mapper bean is never used directly for serialization (it is only copied),
+        // so priming cannot mutate the application's ObjectMapper.
+        verify(exactly = 0) { injected.writeValueAsString(any()) }
 
-    @Test
-    fun `Given a mocked ObjectMapper When primeClasses is invoked Then only serialization methods are called (no network or filesystem IO)`() {
-        // Given — ClassPreloader's ONLY collaborator is the ObjectMapper, so confirming that the only
-        // invocations on it are in-memory serialization calls proves Phase 1 performs no I/O of its own
-        // (Requirement 2.4 — network-free priming).
-        val objectMapper = mockk<ObjectMapper>()
-        every { objectMapper.writeValueAsString(any()) } returns "{}"
-        every { objectMapper.readValue(any<String>(), HttpRequest::class.java) } returns mockk(relaxed = true)
-
-        // When
-        ClassPreloader(objectMapper).primeClasses()
-
-        // Then — exactly the serialization calls happened and nothing else (no I/O collaborators exist).
-        verify(exactly = 2) { objectMapper.writeValueAsString(any()) }
-        verify(exactly = 1) { objectMapper.readValue(any<String>(), HttpRequest::class.java) }
-        confirmVerified(objectMapper)
-
-        clearMocks(objectMapper)
+        clearMocks(injected, primingMapper)
     }
 
     /**
@@ -92,40 +68,28 @@ class ClassPreloaderTest {
      *
      * For any state of the application's dependency graph, `primeClasses()` SHALL complete without
      * throwing an exception that propagates to the caller. We vary the dependency-graph state by
-     * randomizing the behaviour of the injected serializer (healthy, write-failure, read-failure,
-     * relaxed) across 100 iterations.
+     * randomizing the behaviour of the priming serializer (healthy, write-failure, read-failure)
+     * across 100 iterations.
      */
     // Feature: deployment-upgrades-and-healthcheck, Property 1: Priming safety and failure isolation
     @RepeatedTest(100)
     fun `Given any dependency-graph state When primeClasses is invoked Then it never throws`(repetitionInfo: RepetitionInfo) {
         val random = Random(repetitionInfo.currentRepetition)
-        val objectMapper = buildRandomObjectMapper(random)
+        val injected = mockk<ObjectMapper>()
+        val primingMapper = spyk(jacksonObjectMapper())
+        every { injected.copy() } returns primingMapper
 
-        assertDoesNotThrow { ClassPreloader(objectMapper).primeClasses() }
-
-        clearMocks(objectMapper)
-    }
-
-    private fun buildRandomObjectMapper(random: Random): ObjectMapper {
-        val objectMapper = mockk<ObjectMapper>(relaxed = true)
-        when (random.nextInt(4)) {
-            0 -> {
-                // Healthy dependency graph: serialization round-trips successfully.
-                val writeSlot = slot<Any>()
-                every { objectMapper.writeValueAsString(capture(writeSlot)) } returns "{}"
-                every { objectMapper.readValue(any<String>(), HttpRequest::class.java) } answers {
-                    HttpRequest(HttpMethod.POST, emptyMap(), "/docs-flow", emptyMap(), null)
-                }
-            }
-            1 -> // Broken serialization (write path) — must still be swallowed by runCatching.
-                every { objectMapper.writeValueAsString(any()) } throws IOException("write failure")
-            2 -> // Broken deserialization (read path).
-                every { objectMapper.readValue(any<String>(), HttpRequest::class.java) } throws
-                    IllegalStateException("read failure")
-            else -> {
-                // Fully relaxed mock — default no-op behaviour.
-            }
+        when (random.nextInt(3)) {
+            // Broken serialization (write path) — must still be swallowed by runCatching.
+            1 -> every { primingMapper.writeValueAsString(any()) } throws IOException("write failure")
+            // Broken deserialization (read path).
+            2 -> every { primingMapper.readValue(any<String>(), HttpRequest::class.java) } throws
+                IllegalStateException("read failure")
+            // else: healthy round-trip.
         }
-        return objectMapper
+
+        assertDoesNotThrow { ClassPreloader(injected).primeClasses() }
+
+        clearMocks(injected, primingMapper)
     }
 }
