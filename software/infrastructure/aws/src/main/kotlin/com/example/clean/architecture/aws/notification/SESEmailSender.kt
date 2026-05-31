@@ -7,6 +7,7 @@ import aws.sdk.kotlin.services.ses.model.Destination
 import aws.sdk.kotlin.services.ses.model.Message
 import aws.sdk.kotlin.services.ses.model.SendEmailRequest
 import com.example.clean.architecture.notification.DocumentNotificationInterface
+import com.example.clean.architecture.warmup.Warmable
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
@@ -19,7 +20,13 @@ class SESEmailSender(
     private val sesClient: SesClient,
     @Value("\${aws.ses.sender-email}") private val senderEmail: String,
     @Value("\${aws.ses.recipient-email}") private val recipientEmail: String,
-) : DocumentNotificationInterface {
+) : DocumentNotificationInterface, Warmable {
+
+    override fun warmUp(): Unit = runBlocking {
+        logger.info { "Warming up SES connection/credentials via getSendQuota" }
+        sesClient.getSendQuota()
+        Unit
+    }
 
     override fun sendEmail(review: String): Unit = runBlocking {
         logger.info { "Sending review email via SES..." }

@@ -23,6 +23,13 @@ This feature enables cold-start optimization for the Kotlin Clean Architecture p
 - **Spring_Cloud_Function**: A Spring project that provides a programming model for implementing business logic via functions, with adapters for serverless platforms (AWS Lambda, Azure Functions)
 - **SES**: AWS Simple Email Service used for sending notification emails
 - **ACS**: Azure Communication Services used for sending notification emails
+- **Event_Grid**: The Azure eventing service that routes discrete events (such as blob-created notifications) from a source to one or more subscribers using a publish-subscribe model
+- **Event_Grid_System_Topic**: An Azure-managed Event Grid topic that represents events emitted by an Azure resource (here, the `docsflow` storage account) and serves as the source for event subscriptions
+- **Event_Grid_Event_Subscription**: An Event Grid resource that selects events from a topic using event-type and subject filters and delivers the matching events to a configured destination endpoint
+- **Event_Based_Blob_Trigger**: The Event Grid-sourced Azure Functions Blob Storage trigger, selected via `BlobTriggerSource.EVENT_GRID` on `@BlobTrigger`, which fires when Event Grid delivers a `Microsoft.Storage.BlobCreated` event; it is the only Blob Storage trigger source supported on the Flex Consumption plan
+- **Polling_Blob_Trigger**: The legacy (default) Azure Functions Blob Storage trigger source that detects new blobs by periodically scanning the container and tracking receipts; it is not supported on the Flex Consumption plan
+- **Blob_Extension_Endpoint**: The function app's built-in blob-extension webhook endpoint (`/runtime/webhooks/blobs`) that receives Event Grid blob-created events and dispatches them to the matching blob-triggered function
+- **BlobCreated_Event**: The `Microsoft.Storage.BlobCreated` event type emitted by Azure Storage when a blob is written, used to trigger downstream processing
 
 ## Requirements
 
@@ -70,3 +77,17 @@ This feature enables cold-start optimization for the Kotlin Clean Architecture p
 
 14. WHEN the AWS Lambda function cold-starts with ARM64, SnapStart, and Priming enabled, THE AWS_Lambda SHALL restore from the snapshot and respond successfully to the first authenticated request to the existing `docs-flow` endpoint (which requires API key authentication on AWS and function key authorization on Azure) within 10 seconds
 15. WHEN the new priming components are built, THE build system SHALL compile the Class_Preload and Warmable components and execute their unit tests with zero failures
+
+### Requirement 3: Migrate the Blob-Triggered Document Processing to the Event Grid Source for Flex Consumption
+
+**User Story:** As a developer, I want the blob-triggered document-processing function to keep working after the move to Flex Consumption, so that uploaded documents continue to be processed, given that Flex Consumption only supports the Event Grid-based Blob Storage trigger (not the legacy polling trigger).
+
+#### Acceptance Criteria
+
+1. THE Azure_Function `ProcessDocument` Event_Based_Blob_Trigger SHALL declare the Event Grid trigger source (the `source = BlobTriggerSource.EVENT_GRID` attribute on `@BlobTrigger`) instead of the default Polling_Blob_Trigger source
+2. THE Azure_Function `ProcessDocument` Event_Based_Blob_Trigger SHALL retain the existing container path `docs-flow/{name}` and the `TriggerBlobStorage` connection setting after the trigger source change
+3. THE `:infra-azure` module SHALL declare the Azure Functions Java library dependency version that exposes the `BlobTriggerSource` type providing the `EVENT_GRID` source
+4. THE CDK_Stack for Azure SHALL provision an Event_Grid_System_Topic for the `docsflow` storage account that emits `Microsoft.Storage.BlobCreated` events
+5. THE CDK_Stack for Azure SHALL provision an Event_Grid_Event_Subscription that filters the Event_Grid_System_Topic to `Microsoft.Storage.BlobCreated` events scoped to the `docs-flow` container and delivers matching events to the Azure_Function Blob_Extension_Endpoint
+6. WHEN a document is uploaded to the `docs-flow` container after deployment on the Flex_Consumption_Plan, THE Azure_Function SHALL invoke the `ProcessDocument` function via the Event_Grid_Event_Subscription and complete the existing review-and-notify flow
+7. THE Azure_Function `ProcessDocument` trigger connection SHALL continue to authenticate to the storage account using the existing managed identity (the `TriggerBlobStorage__credential` setting value `managedidentity`) after the trigger source change

@@ -2,10 +2,12 @@ package com.example.clean.architecture.aws.persistence
 
 import aws.sdk.kotlin.services.s3.S3Client
 import aws.sdk.kotlin.services.s3.model.GetObjectRequest
+import aws.sdk.kotlin.services.s3.model.HeadBucketRequest
 import aws.sdk.kotlin.services.s3.model.PutObjectRequest
 import aws.sdk.kotlin.services.s3.presigners.presignGetObject
 import aws.smithy.kotlin.runtime.content.ByteStream
 import com.example.clean.architecture.persistence.ObjectStorageInterface
+import com.example.clean.architecture.warmup.Warmable
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
@@ -18,7 +20,17 @@ private val logger = KotlinLogging.logger {}
 class S3ObjectStore(
     @Value("\${aws.s3.bucket-name}") private val bucketName: String,
     private val s3Client: S3Client,
-) : ObjectStorageInterface {
+) : ObjectStorageInterface, Warmable {
+
+    override fun warmUp(): Unit = runBlocking {
+        logger.info { "Warming up S3 connection via headBucket" }
+        s3Client.headBucket(
+            HeadBucketRequest {
+                bucket = bucketName
+            }
+        )
+        Unit
+    }
 
     override fun save(id: String, content: ByteArray): String = runBlocking {
         logger.info { "Saving doc with id: $id" }

@@ -5,9 +5,17 @@ import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationIns
 import com.hashicorp.cdktf.providers.azurerm.application_insights.ApplicationInsightsConfig
 import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationService
 import com.hashicorp.cdktf.providers.azurerm.communication_service.CommunicationServiceConfig
+import com.hashicorp.cdktf.providers.azurerm.data_azurerm_function_app_host_keys.DataAzurermFunctionAppHostKeys
+import com.hashicorp.cdktf.providers.azurerm.data_azurerm_function_app_host_keys.DataAzurermFunctionAppHostKeysConfig
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroup
 import com.hashicorp.cdktf.providers.azurerm.data_azurerm_resource_group.DataAzurermResourceGroupConfig
-import com.hashicorp.cdktf.providers.azurerm.linux_function_app.*
+import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic.EventgridSystemTopic
+import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic.EventgridSystemTopicConfig
+import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic_event_subscription.EventgridSystemTopicEventSubscription
+import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic_event_subscription.EventgridSystemTopicEventSubscriptionConfig
+import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic_event_subscription.EventgridSystemTopicEventSubscriptionSubjectFilter
+import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic_event_subscription.EventgridSystemTopicEventSubscriptionWebhookEndpoint
+import com.hashicorp.cdktf.providers.azurerm.function_app_flex_consumption.*
 import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspace
 import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspaceConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProvider
@@ -169,7 +177,7 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        // Create an App Service Plan
+        // Create an App Service Plan (Flex Consumption)
         val servicePlan = ServicePlan(
             this, "CleanArchitectureAppServicePlan",
             ServicePlanConfig.builder()
@@ -177,7 +185,7 @@ class AzureStack(scope: Construct, id: String) :
                 .name(appServicePlanName)
                 .resourceGroupName(resourceGroup.name)
                 .osType("Linux")
-                .skuName("Y1")
+                .skuName("FC1")
                 .location(resourceGroup.location)
                 .build()
         )
@@ -218,10 +226,10 @@ class AzureStack(scope: Construct, id: String) :
         )
 
 
-        // Create the Function App
-        val functionApp = LinuxFunctionApp(
+        // Create the Function App (Flex Consumption)
+        val functionApp = FunctionAppFlexConsumption(
             this, "DocsFlowSpringCloudFunctionApp",
-            LinuxFunctionAppConfig.builder()
+            FunctionAppFlexConsumptionConfig.builder()
                 .dependsOn(
                     listOf(
                         resourceGroup,
@@ -233,21 +241,26 @@ class AzureStack(scope: Construct, id: String) :
                 .resourceGroupName(resourceGroup.name)
                 .location(resourceGroup.location)
                 .servicePlanId(servicePlan.id)
-                .storageAccountName(azureStorageAccountNameVar.stringValue)
-                .storageAccountAccessKey(
-                    storageAccountAccessKey
+                // Flex Consumption hosts the code package in a blob container.
+                // Preserve the existing access-key based storage authentication.
+                .storageContainerType("blobContainer")
+                .storageContainerEndpoint(
+                    "https://${azureStorageAccountNameVar.stringValue}.blob.core.windows.net/deploymentpackage"
                 )
+                .storageAuthenticationType("StorageAccountConnectionString")
+                .storageAccessKey(storageAccountAccessKey)
+                // Retain the existing Java 21 runtime (no Java 25). On the Flex
+                // Consumption resource the application stack is expressed via the
+                // top-level runtime_name / runtime_version instead of an
+                // application_stack block.
+                .runtimeName("java")
+                .runtimeVersion("21")
                 .siteConfig(
-                    LinuxFunctionAppSiteConfig.builder()
-                        .applicationStack(
-                            LinuxFunctionAppSiteConfigApplicationStack.builder()
-                                .javaVersion("21")
-                                .build()
-                        )
+                    FunctionAppFlexConsumptionSiteConfig.builder()
                         .build()
                 )
                 .identity(
-                    LinuxFunctionAppIdentity.builder()
+                    FunctionAppFlexConsumptionIdentity.builder()
                         .type("SystemAssigned")
                         .build() // ✅ Enables Managed Identity
                 )
@@ -332,6 +345,80 @@ class AzureStack(scope: Construct, id: String) :
                 .scope(acsService.id)
                 .roleDefinitionId(acsCustomRole.roleDefinitionResourceId)
                 .principalId(functionApp.identity.principalId)
+                .build()
+        )
+
+        // ---------------------------------------------------------------------
+        // Event Grid-based blob trigger routing (Flex Consumption).
+        //
+        // Flex Consumption supports only the Event Grid-sourced Blob Storage
+        // trigger, so the ProcessDocument function is driven by an Event Grid
+        // system topic + event subscription that routes Microsoft.Storage
+        // .BlobCreated events from the docsflow storage account to the function
+        // app's built-in blob-extension webhook. (design §6c / §6d)
+        // ---------------------------------------------------------------------
+
+        // System topic representing the docsflow storage account as an event
+        // source (Requirement 3.4).
+        val blobSystemTopic = EventgridSystemTopic(
+            this,
+            "DocsFlowBlobSystemTopic",
+            EventgridSystemTopicConfig.builder()
+                .name("docsflow-blob-created-topic")
+                .resourceGroupName(resourceGroup.name)
+                .location(resourceGroup.location)
+                .topicType("Microsoft.Storage.StorageAccounts")
+                .sourceArmResourceId(storageAccountDocsFlow.id)
+                .dependsOn(listOf(storageAccountDocsFlow))
+                .build()
+        )
+
+        // Reference the function app's built-in `blobs_extension` system key via
+        // the azurerm_function_app_host_keys data source. The key is consumed
+        // only as a Terraform interpolation in the webhook URL below, so the
+        // secret value is never hard-coded in source or written to logs.
+        val functionAppHostKeys = DataAzurermFunctionAppHostKeys(
+            this,
+            "DocsFlowFunctionAppHostKeys",
+            DataAzurermFunctionAppHostKeysConfig.builder()
+                .name(functionApp.name)
+                .resourceGroupName(resourceGroup.name)
+                .dependsOn(listOf(functionApp))
+                .build()
+        )
+
+        // Blob-extension webhook endpoint that Event Grid delivers BlobCreated
+        // events to. The `code` query parameter is a Terraform reference to the
+        // blobs_extension system key (never a literal value). (design §6d)
+        val blobExtensionWebhookUrl =
+            "https://${functionApp.defaultHostname}/runtime/webhooks/blobs" +
+                "?functionName=Host.Functions.ProcessDocument" +
+                "&code=\${${functionAppHostKeys.fqn}.blobs_extension_key}"
+
+        // Event subscription filtering the system topic to BlobCreated events
+        // scoped to the docs-flow container and delivering them to the function
+        // app's blob-extension webhook (Requirement 3.5). Managed identity on the
+        // trigger connection is preserved; this subscription only routes the
+        // event notification (no shared access key is introduced).
+        EventgridSystemTopicEventSubscription(
+            this,
+            "DocsFlowBlobEventSubscription",
+            EventgridSystemTopicEventSubscriptionConfig.builder()
+                .name("docsflow-process-document-sub")
+                .systemTopic(blobSystemTopic.name)
+                .resourceGroupName(resourceGroup.name)
+                .includedEventTypes(listOf("Microsoft.Storage.BlobCreated"))
+                .subjectFilter(
+                    EventgridSystemTopicEventSubscriptionSubjectFilter.builder()
+                        .subjectBeginsWith("/blobServices/default/containers/docs-flow/")
+                        .build()
+                )
+                .webhookEndpoint(
+                    EventgridSystemTopicEventSubscriptionWebhookEndpoint.builder()
+                        .url(blobExtensionWebhookUrl)
+                        .build()
+                )
+                .dependsOn(listOf(blobSystemTopic, functionApp))
                 .build()
         )
 

@@ -24,6 +24,8 @@ dependencies {
     implementation("com.amazonaws:aws-lambda-java-core:1.2.2")
     implementation("com.amazonaws:aws-lambda-java-events:3.11.1")
     implementation("org.slf4j:slf4j-api:2.0.5")
+    // CRaC API used by the SnapStart priming hook (beforeCheckpoint / afterRestore)
+    implementation("org.crac:crac:1.5.0")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:1.5.31")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")

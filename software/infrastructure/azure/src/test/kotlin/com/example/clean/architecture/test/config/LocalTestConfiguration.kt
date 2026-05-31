@@ -1,6 +1,7 @@
 package com.example.clean.architecture.test.config
 
 import com.azure.communication.email.EmailClient
+import com.azure.core.credential.TokenCredential
 import com.azure.storage.blob.BlobContainerClient
 import com.azure.storage.blob.BlobServiceClient
 import io.mockk.mockk
@@ -9,6 +10,9 @@ import org.springframework.context.annotation.Bean
 
 @TestConfiguration
 class LocalTestConfiguration {
+
+    @Bean
+    fun azureCredential(): TokenCredential = mockk(relaxed = true)
 
     @Bean
     fun blobContainerClient(): BlobContainerClient = mockk(relaxed = true)

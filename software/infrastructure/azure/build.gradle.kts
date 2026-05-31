@@ -18,6 +18,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.cloud:spring-cloud-function-context")
     implementation("org.springframework.cloud:spring-cloud-function-adapter-azure:4.2.2")
+    // Declared explicitly (was transitive via spring-cloud-function-adapter-azure:4.2.2, which
+    // pins azure.functions.java.core.version=3.1.0). This version exposes the @BlobTrigger
+    // `source` attribute required for the Event Grid-based blob trigger ("EventGrid" source).
+    // Pinning it makes the event-based trigger a verifiable build contract and prevents a
+    // transitive downgrade from silently breaking compilation of the trigger-source reference.
+    implementation("com.microsoft.azure.functions:azure-functions-java-library:3.1.0")
     implementation("com.azure:azure-identity:1.15.4")
     implementation("com.azure:azure-storage-blob:12.25.1")
     implementation("com.azure:azure-communication-email:1.0.2")

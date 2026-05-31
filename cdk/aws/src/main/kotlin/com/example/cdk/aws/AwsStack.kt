@@ -29,6 +29,7 @@ import com.hashicorp.cdktf.providers.aws.iam_role_policy.IamRolePolicyConfig
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunction
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionConfig
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionEnvironment
+import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionSnapStart
 import com.hashicorp.cdktf.providers.aws.lambda_permission.LambdaPermission
 import com.hashicorp.cdktf.providers.aws.lambda_permission.LambdaPermissionConfig
 import com.hashicorp.cdktf.providers.aws.provider.AwsProvider
@@ -222,7 +223,17 @@ class AwsStack(
                     )
                 )
                 .memorySize(1024)
-                //.snapStart { "PublishedVersions" }
+                .architectures(listOf("arm64"))
+                // Enable SnapStart on published versions and publish a new version on each
+                // deployment (driven by the source_code_hash). SnapStart snapshots are only
+                // created for published versions, so the API Gateway integration below must
+                // invoke the qualified (versioned) ARN for SnapStart to take effect.
+                .snapStart(
+                    LambdaFunctionSnapStart.builder()
+                        .applyOn("PublishedVersions")
+                        .build()
+                )
+                .publish(true)
                 .environment(
                     LambdaFunctionEnvironment.builder()
                         .variables(
@@ -262,6 +273,13 @@ class AwsStack(
                     )
                 )
                 .memorySize(1024)
+                .architectures(listOf("arm64"))
+                .snapStart(
+                    LambdaFunctionSnapStart.builder()
+                        .applyOn("PublishedVersions")
+                        .build()
+                )
+                .publish(true)
                 .environment(
                     LambdaFunctionEnvironment.builder()
                         .variables(
@@ -299,6 +317,13 @@ class AwsStack(
                     )
                 )
                 .memorySize(1024)
+                .architectures(listOf("arm64"))
+                .snapStart(
+                    LambdaFunctionSnapStart.builder()
+                        .applyOn("PublishedVersions")
+                        .build()
+                )
+                .publish(true)
                 .environment(
                     LambdaFunctionEnvironment.builder()
                         .variables(
@@ -351,12 +376,14 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda for proxy endpoints
+        // Grant API Gateway permission to invoke Lambda for proxy endpoints.
+        // Qualified to the published version so SnapStart-restored invocations are authorized.
         val lambdaPermissionAPI = LambdaPermission(
             this,
             "DocsFlow-Spring-Clean-Architecture-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(lambdaFunction.functionName)
+                .qualifier(lambdaFunction.version)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
                 .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
@@ -364,7 +391,8 @@ class AwsStack(
         )
 
 
-        // Create Lambda integration for docs-flow endpoint
+        // Create Lambda integration for docs-flow endpoint.
+        // Invoke the published version (qualifiedInvokeArn) so SnapStart takes effect.
         val docsFlowIntegration = ApiGatewayIntegration(
             this,
             "DocsFlow-Integration",
@@ -375,7 +403,7 @@ class AwsStack(
                 .httpMethod(docsFlowMethod.httpMethod)
                 .integrationHttpMethod("POST")
                 .type("AWS_PROXY")
-                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
+                .uri(lambdaFunction.qualifiedInvokeArn)
                 .build()
         )
 
@@ -403,19 +431,21 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Health Check Lambda
+        // Grant API Gateway permission to invoke Health Check Lambda (published version)
         val healthCheckLambdaPermission = LambdaPermission(
             this,
             "DocsFlow-HealthCheck-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(healthCheckLambda.functionName)
+                .qualifier(healthCheckLambda.version)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
                 .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
                 .build()
         )
 
-        // Create Lambda integration for health check endpoint
+        // Create Lambda integration for health check endpoint.
+        // Invoke the published version (qualifiedInvokeArn) so SnapStart takes effect.
         val healthIntegration = ApiGatewayIntegration(
             this,
             "Health-Integration",
@@ -426,7 +456,7 @@ class AwsStack(
                 .httpMethod(healthMethod.httpMethod)
                 .integrationHttpMethod("POST")
                 .type("AWS_PROXY")
-                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${healthCheckLambda.arn}/invocations")
+                .uri(healthCheckLambda.qualifiedInvokeArn)
                 .build()
         )
 
@@ -536,19 +566,21 @@ class AwsStack(
         )
 
 
-        // Grant S3 permission to invoke the document processor Lambda
+        // Grant S3 permission to invoke the document processor Lambda (published version)
         val s3LambdaPermission = LambdaPermission(
             this,
             "DocsFlow-S3-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(documentProcessorLambda.functionName)
+                .qualifier(documentProcessorLambda.version)
                 .action("lambda:InvokeFunction")
                 .principal("s3.amazonaws.com")
                 .sourceArn(s3Bucket.arn)
                 .build()
         )
 
-        // Configure S3 bucket to trigger Lambda when objects are created
+        // Configure S3 bucket to trigger Lambda when objects are created.
+        // Target the published version (qualifiedArn) so SnapStart takes effect.
         val s3BucketNotification = S3BucketNotification(
             this,
             "DocsFlow-S3-Notification",
@@ -559,7 +591,7 @@ class AwsStack(
                     listOf(
                         S3BucketNotificationLambdaFunction.builder()
                             .events(listOf("s3:ObjectCreated:*"))
-                            .lambdaFunctionArn(documentProcessorLambda.arn)
+                            .lambdaFunctionArn(documentProcessorLambda.qualifiedArn)
                             .build()
                     )
                 )

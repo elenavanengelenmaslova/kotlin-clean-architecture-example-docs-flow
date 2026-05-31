@@ -2,6 +2,7 @@ package com.example.clean.architecture.azure.config
 
 import com.azure.communication.email.EmailClient
 import com.azure.communication.email.EmailClientBuilder
+import com.azure.core.credential.TokenCredential
 import com.azure.identity.DefaultAzureCredentialBuilder
 import com.azure.storage.blob.BlobContainerClient
 import com.azure.storage.blob.BlobServiceClient
@@ -23,12 +24,17 @@ class AzureConfig(
 ) {
 
     @Bean
-    fun blobServiceClient(): BlobServiceClient {
+    fun azureCredential(): TokenCredential {
+        logger.info { "Initializing DefaultAzureCredential (managed identity)" }
+        return DefaultAzureCredentialBuilder().build()
+    }
+
+    @Bean
+    fun blobServiceClient(azureCredential: TokenCredential): BlobServiceClient {
         logger.info { "Initializing Blob Service Client using managed identity" }
-        val credential = DefaultAzureCredentialBuilder().build()
         return BlobServiceClientBuilder()
             .endpoint(endpoint)
-            .credential(credential)
+            .credential(azureCredential)
             .buildClient()
     }
 
@@ -41,12 +47,11 @@ class AzureConfig(
 
 
     @Bean
-    fun emailClient(): EmailClient {
+    fun emailClient(azureCredential: TokenCredential): EmailClient {
         logger.info { "Initializing Azure Communication Services Email Client using managed identity" }
-        val credential = DefaultAzureCredentialBuilder().build()
         return EmailClientBuilder()
             .endpoint(acsEndpoint)
-            .credential(credential)
+            .credential(azureCredential)
             .buildClient()
     }
 }

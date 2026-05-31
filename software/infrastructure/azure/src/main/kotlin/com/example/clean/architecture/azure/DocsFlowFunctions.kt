@@ -67,6 +67,7 @@ class DocsFlowFunctions(
     fun processDocument(
         @BlobTrigger(
             name = "content",
+            source = "EventGrid",
             path = "docs-flow/{name}",
             connection = "TriggerBlobStorage"
         ) content: ByteArray,
