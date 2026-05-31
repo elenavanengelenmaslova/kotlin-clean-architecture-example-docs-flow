@@ -1,0 +1,13 @@
+{
+  "name": "Security Review",
+  "version": "1.0.0",
+  "description": "Review changes for PII in DB models, unsafe logging, missing authorization, missing credit checks, frontend-controlled AI parameters, overly broad IAM, missing idempotency, missing rate limits, committed secrets, and SAM security issues",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before writing this file, review the change for security issues. Check for: (1) direct PII fields in application DB models (email, name, phone, address, payment details are forbidden — use Cognito subject ID only), (2) unsafe logging of prompts containing user answers or source material, (3) missing authorization checks on endpoints, (4) missing credit checks before AI calls, (5) frontend-controlled model/token/source/credit/prompt fields (these must be server-controlled), (6) overly broad IAM permissions in SAM templates, (7) missing idempotency keys for credit-spending operations, (8) missing rate limits on AI endpoints, (9) secrets or credentials committed in code, (10) SAM security issues (missing encryption, public S3 buckets, missing log retention). If any issues are found, describe them clearly. If no issues, confirm the change is safe."
+  }
+}

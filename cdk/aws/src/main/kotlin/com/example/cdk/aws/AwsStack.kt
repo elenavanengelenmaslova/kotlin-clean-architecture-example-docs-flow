@@ -431,12 +431,36 @@ class AwsStack(
         )
 
         // Create API Gateway Deployment
+        // A redeploy MUST be triggered whenever the API surface changes; otherwise the
+        // stage keeps serving the previous deployment and new routes (e.g. /health) return
+        // 403 "Missing Authentication Token". The triggers hash forces a new deployment.
         val deployment = ApiGatewayDeployment(
             this,
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
                 .dependsOn(listOf(docsFlowIntegration, healthIntegration))
+                .triggers(
+                    mapOf(
+                        "redeployment" to Fn.sha1(
+                            Fn.jsonencode(
+                                listOf(
+                                    docsFlowResource.id,
+                                    docsFlowMethod.id,
+                                    docsFlowIntegration.id,
+                                    healthResource.id,
+                                    healthMethod.id,
+                                    healthIntegration.id
+                                )
+                            )
+                        )
+                    )
+                )
+                .lifecycle(
+                    TerraformResourceLifecycle.builder()
+                        .createBeforeDestroy(true)
+                        .build()
+                )
                 .build()
         )
 

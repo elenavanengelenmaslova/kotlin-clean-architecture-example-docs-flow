@@ -59,7 +59,13 @@
           "aws_api_gateway_integration.DocsFlow-Integration",
           "aws_api_gateway_integration.Health-Integration"
         ],
-        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
+        "lifecycle": {
+          "create_before_destroy": true
+        },
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
+        "triggers": {
+          "redeployment": "${sha1(jsonencode([aws_api_gateway_resource.DocsFlow-Resource.id, aws_api_gateway_method.DocsFlow-Method.id, aws_api_gateway_integration.DocsFlow-Integration.id, aws_api_gateway_resource.Health-Resource.id, aws_api_gateway_method.Health-Method.id, aws_api_gateway_integration.Health-Integration.id]))}"
+        }
       }
     },
     "aws_api_gateway_integration": {

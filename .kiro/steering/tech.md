@@ -1,5 +1,15 @@
 # Development Practices
 
+## Secret Handling in Pipelines and Logs
+
+**Never print, echo, or expose secrets, API keys, tokens, passwords, or connection strings in CI/CD logs or terminal output.** Specifically:
+- NEVER write a secret/credential value into `$GITHUB_ENV` (e.g. `echo "API_KEY=$API_KEY" >> $GITHUB_ENV`). GitHub Actions dumps the `env:` block at the start of every subsequent step, and values sourced from `$GITHUB_ENV` are NOT auto-masked — so they leak in cleartext.
+- For values that must flow between steps, keep them in **step-scoped outputs** or local shell variables within a single `run:` block, and call `::add-mask::` on any sensitive value before it could be printed: `echo "::add-mask::$SECRET"`.
+- Prefer fetching a credential and using it inside the SAME step (single `run:` block) so it never crosses into the logged `env:` context.
+- Never `echo`/`cat`/`print` a secret for debugging. Redact with `***` or omit entirely.
+- When a secret is accidentally exposed in a log, treat it as compromised and rotate it immediately.
+- This applies to all clouds (AWS API keys, Azure function keys, storage keys), database credentials, and any PII.
+
 ## Gradle Cache Policy
 
 This policy is about **how you gather information**, not about modifying the cache.

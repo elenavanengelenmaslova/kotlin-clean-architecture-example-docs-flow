@@ -134,17 +134,15 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           ./gradlew clean azureFunctionsDeploy
 
-      - name: Retrieve Function URL and Key
+      - name: Retrieve endpoint and run health check
         run: |
           FUNC_URL=$(az functionapp show --name docs-flow-spring-clean-architecture-fun \
             --resource-group $AZURE_RESOURCE_GROUP_NAME --query defaultHostName -o tsv)
           FUNC_KEY=$(az functionapp keys list --name docs-flow-spring-clean-architecture-fun \
             --resource-group $AZURE_RESOURCE_GROUP_NAME --query functionKeys.default -o tsv)
-          echo "FUNC_URL=https://$FUNC_URL" >> $GITHUB_ENV
-          echo "FUNC_KEY=$FUNC_KEY" >> $GITHUB_ENV
-
-      - name: Health Check
-        run: |
+          # Mask the function key so it can never be printed in logs (env dumps, set -x, etc.)
+          echo "::add-mask::$FUNC_KEY"
+          FUNC_URL="https://$FUNC_URL"
           for i in 1 2 3; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 \
               "$FUNC_URL/api/health?code=$FUNC_KEY")
@@ -158,4 +156,5 @@ jobs:
             fi
           done
           echo "Health check failed after 3 attempts. Last status code: $STATUS"
+          exit 1
           exit 1
