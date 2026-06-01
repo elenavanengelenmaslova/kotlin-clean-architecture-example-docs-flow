@@ -1,6 +1,8 @@
 package com.example.cdk.aws
 
 import com.hashicorp.cdktf.*
+import com.hashicorp.cdktf.providers.aws.api_gateway_account.ApiGatewayAccount
+import com.hashicorp.cdktf.providers.aws.api_gateway_account.ApiGatewayAccountConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_api_key.ApiGatewayApiKey
 import com.hashicorp.cdktf.providers.aws.api_gateway_api_key.ApiGatewayApiKeyConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_deployment.ApiGatewayDeployment
@@ -9,23 +11,31 @@ import com.hashicorp.cdktf.providers.aws.api_gateway_integration.ApiGatewayInteg
 import com.hashicorp.cdktf.providers.aws.api_gateway_integration.ApiGatewayIntegrationConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_method.ApiGatewayMethod
 import com.hashicorp.cdktf.providers.aws.api_gateway_method.ApiGatewayMethodConfig
+import com.hashicorp.cdktf.providers.aws.api_gateway_method_settings.ApiGatewayMethodSettings
+import com.hashicorp.cdktf.providers.aws.api_gateway_method_settings.ApiGatewayMethodSettingsConfig
+import com.hashicorp.cdktf.providers.aws.api_gateway_method_settings.ApiGatewayMethodSettingsSettings
 import com.hashicorp.cdktf.providers.aws.api_gateway_resource.ApiGatewayResource
 import com.hashicorp.cdktf.providers.aws.api_gateway_resource.ApiGatewayResourceConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_rest_api.ApiGatewayRestApi
 import com.hashicorp.cdktf.providers.aws.api_gateway_rest_api.ApiGatewayRestApiConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_stage.ApiGatewayStage
+import com.hashicorp.cdktf.providers.aws.api_gateway_stage.ApiGatewayStageAccessLogSettings
 import com.hashicorp.cdktf.providers.aws.api_gateway_stage.ApiGatewayStageConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan.ApiGatewayUsagePlan
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan.ApiGatewayUsagePlanApiStages
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan.ApiGatewayUsagePlanConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan_key.ApiGatewayUsagePlanKey
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan_key.ApiGatewayUsagePlanKeyConfig
+import com.hashicorp.cdktf.providers.aws.cloudwatch_log_group.CloudwatchLogGroup
+import com.hashicorp.cdktf.providers.aws.cloudwatch_log_group.CloudwatchLogGroupConfig
 import com.hashicorp.cdktf.providers.aws.iam_policy.IamPolicy
 import com.hashicorp.cdktf.providers.aws.iam_policy.IamPolicyConfig
 import com.hashicorp.cdktf.providers.aws.iam_role.IamRole
 import com.hashicorp.cdktf.providers.aws.iam_role.IamRoleConfig
 import com.hashicorp.cdktf.providers.aws.iam_role_policy.IamRolePolicy
 import com.hashicorp.cdktf.providers.aws.iam_role_policy.IamRolePolicyConfig
+import com.hashicorp.cdktf.providers.aws.iam_role_policy_attachment.IamRolePolicyAttachment
+import com.hashicorp.cdktf.providers.aws.iam_role_policy_attachment.IamRolePolicyAttachmentConfig
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunction
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionConfig
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionEnvironment
@@ -340,6 +350,53 @@ class AwsStack(
                 .build()
         )
 
+        // ---------------------------------------------------------------------
+        // API Gateway account-level CloudWatch logging role.
+        // API Gateway needs an account-wide IAM role (set via aws_api_gateway_account)
+        // before any stage can push execution/access logs to CloudWatch Logs. Without
+        // it, enabling method-level logging fails with
+        // "CloudWatch Logs role ARN must be set in account settings".
+        // This role is assumable only by the API Gateway service and carries just the
+        // AWS managed push-to-CloudWatch-Logs policy (least privilege).
+        // ---------------------------------------------------------------------
+        val apiGatewayCloudWatchRole = IamRole(
+            this,
+            "DocsFlow-ApiGateway-CloudWatch-Role",
+            IamRoleConfig.builder()
+                .name("DocsFlow-ApiGateway-CloudWatch-Role")
+                .assumeRolePolicy(
+                    """{
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Principal": {"Service": "apigateway.amazonaws.com"},
+                            "Effect": "Allow"
+                        }
+                    ]
+                }"""
+                ).build()
+        )
+
+        IamRolePolicyAttachment(
+            this,
+            "DocsFlow-ApiGateway-CloudWatch-RoleAttachment",
+            IamRolePolicyAttachmentConfig.builder()
+                .role(apiGatewayCloudWatchRole.name)
+                .policyArn("arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs")
+                .build()
+        )
+
+        // Account-level setting that points API Gateway at the CloudWatch role above.
+        // This is region-wide (one per account/region) and was explicitly approved.
+        val apiGatewayAccount = ApiGatewayAccount(
+            this,
+            "DocsFlow-ApiGateway-Account",
+            ApiGatewayAccountConfig.builder()
+                .cloudwatchRoleArn(apiGatewayCloudWatchRole.arn)
+                .build()
+        )
+
         // Create API Gateway REST API (API Gateway v1)
         val api = ApiGatewayRestApi(
             this,
@@ -464,6 +521,14 @@ class AwsStack(
         // A redeploy MUST be triggered whenever the API surface changes; otherwise the
         // stage keeps serving the previous deployment and new routes (e.g. /health) return
         // 403 "Missing Authentication Token". The triggers hash forces a new deployment.
+        //
+        // The hash ALSO includes each Lambda's published `version`. The integration `uri`
+        // embeds the qualified (versioned) invoke ARN, but the resource/method/integration
+        // IDs do NOT change when only the published version changes. Without the version in
+        // the trigger, a deploy that publishes a new Lambda version leaves the live stage
+        // pointed at a stale version, so API Gateway gets AccessDenied from Lambda and
+        // returns a 500 with no function invocation logs. Including the versions forces a
+        // redeploy whenever SnapStart publishes a new version.
         val deployment = ApiGatewayDeployment(
             this,
             "DocsFlow-Spring-Clean-Architecture-Deployment",
@@ -480,7 +545,10 @@ class AwsStack(
                                     docsFlowIntegration.id,
                                     healthResource.id,
                                     healthMethod.id,
-                                    healthIntegration.id
+                                    healthIntegration.id,
+                                    lambdaFunction.version,
+                                    healthCheckLambda.version,
+                                    documentProcessorLambda.version
                                 )
                             )
                         )
@@ -494,7 +562,20 @@ class AwsStack(
                 .build()
         )
 
+        // CloudWatch log group that receives the API Gateway stage access logs.
+        val accessLogGroup = CloudwatchLogGroup(
+            this,
+            "DocsFlow-ApiGateway-AccessLogs",
+            CloudwatchLogGroupConfig.builder()
+                .name("/aws/api-gateway/DocsFlow-Spring-Clean-Architecture-API/demo")
+                .retentionInDays(14)
+                .build()
+        )
+
         // Create API Gateway Stage
+        // Access logging is attached here so every request is recorded with its
+        // integration status/error, which surfaces the real cause of 5xx responses
+        // (e.g. Lambda AccessDenied) even when the function itself never runs.
         val stage = ApiGatewayStage(
             this,
             "DocsFlow-Spring-Clean-Architecture-Stage",
@@ -502,6 +583,36 @@ class AwsStack(
                 .restApiId(api.id)
                 .deploymentId(deployment.id)
                 .stageName("demo")
+                .accessLogSettings(
+                    ApiGatewayStageAccessLogSettings.builder()
+                        .destinationArn(accessLogGroup.arn)
+                        .format(
+                            """{"requestId":"${'$'}context.requestId","ip":"${'$'}context.identity.sourceIp","httpMethod":"${'$'}context.httpMethod","resourcePath":"${'$'}context.resourcePath","status":"${'$'}context.status","integrationStatus":"${'$'}context.integration.status","integrationErrorMessage":"${'$'}context.integration.error","responseLatency":"${'$'}context.responseLatency"}"""
+                        )
+                        .build()
+                )
+                .build()
+        )
+
+        // Per-method execution logging + CloudWatch metrics for ALL methods on the stage.
+        // Depends on the account-level CloudWatch role being configured first, otherwise
+        // API Gateway rejects the setting. dataTraceEnabled emits full request/response
+        // trace entries to the execution logs to pinpoint the failing integration.
+        ApiGatewayMethodSettings(
+            this,
+            "DocsFlow-ApiGateway-MethodSettings",
+            ApiGatewayMethodSettingsConfig.builder()
+                .restApiId(api.id)
+                .stageName(stage.stageName)
+                .methodPath("*/*")
+                .dependsOn(listOf(apiGatewayAccount))
+                .settings(
+                    ApiGatewayMethodSettingsSettings.builder()
+                        .metricsEnabled(true)
+                        .loggingLevel("INFO")
+                        .dataTraceEnabled(true)
+                        .build()
+                )
                 .build()
         )
 

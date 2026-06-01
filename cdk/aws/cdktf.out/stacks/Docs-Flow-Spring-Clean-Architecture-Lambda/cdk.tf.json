@@ -34,6 +34,17 @@
     ]
   },
   "resource": {
+    "aws_api_gateway_account": {
+      "DocsFlow-ApiGateway-Account": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-ApiGateway-Account",
+            "uniqueId": "DocsFlow-ApiGateway-Account"
+          }
+        },
+        "cloudwatch_role_arn": "${aws_iam_role.DocsFlow-ApiGateway-CloudWatch-Role.arn}"
+      }
+    },
     "aws_api_gateway_api_key": {
       "DocsFlow-Spring-Clean-Architecture-ApiKey": {
         "//": {
@@ -64,7 +75,7 @@
         },
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
         "triggers": {
-          "redeployment": "${sha1(jsonencode([aws_api_gateway_resource.DocsFlow-Resource.id, aws_api_gateway_method.DocsFlow-Method.id, aws_api_gateway_integration.DocsFlow-Integration.id, aws_api_gateway_resource.Health-Resource.id, aws_api_gateway_method.Health-Method.id, aws_api_gateway_integration.Health-Integration.id]))}"
+          "redeployment": "${sha1(jsonencode([aws_api_gateway_resource.DocsFlow-Resource.id, aws_api_gateway_method.DocsFlow-Method.id, aws_api_gateway_integration.DocsFlow-Integration.id, aws_api_gateway_resource.Health-Resource.id, aws_api_gateway_method.Health-Method.id, aws_api_gateway_integration.Health-Integration.id, aws_lambda_function.DocsFlow-Spring-Clean-Architecture-Fun.version, aws_lambda_function.DocsFlow-HealthCheck-Fun.version, aws_lambda_function.DocsFlow-Document-Processor.version]))}"
         }
       }
     },
@@ -132,6 +143,27 @@
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}"
       }
     },
+    "aws_api_gateway_method_settings": {
+      "DocsFlow-ApiGateway-MethodSettings": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-ApiGateway-MethodSettings",
+            "uniqueId": "DocsFlow-ApiGateway-MethodSettings"
+          }
+        },
+        "depends_on": [
+          "aws_api_gateway_account.DocsFlow-ApiGateway-Account"
+        ],
+        "method_path": "*/*",
+        "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
+        "settings": {
+          "data_trace_enabled": true,
+          "logging_level": "INFO",
+          "metrics_enabled": true
+        },
+        "stage_name": "${aws_api_gateway_stage.DocsFlow-Spring-Clean-Architecture-Stage.stage_name}"
+      }
+    },
     "aws_api_gateway_resource": {
       "DocsFlow-Resource": {
         "//": {
@@ -179,6 +211,10 @@
             "uniqueId": "DocsFlow-Spring-Clean-Architecture-Stage"
           }
         },
+        "access_log_settings": {
+          "destination_arn": "${aws_cloudwatch_log_group.DocsFlow-ApiGateway-AccessLogs.arn}",
+          "format": "{\"requestId\":\"$context.requestId\",\"ip\":\"$context.identity.sourceIp\",\"httpMethod\":\"$context.httpMethod\",\"resourcePath\":\"$context.resourcePath\",\"status\":\"$context.status\",\"integrationStatus\":\"$context.integration.status\",\"integrationErrorMessage\":\"$context.integration.error\",\"responseLatency\":\"$context.responseLatency\"}"
+        },
         "deployment_id": "${aws_api_gateway_deployment.DocsFlow-Spring-Clean-Architecture-Deployment.id}",
         "rest_api_id": "${aws_api_gateway_rest_api.DocsFlow-Spring-Clean-Architecture-API.id}",
         "stage_name": "demo"
@@ -215,6 +251,18 @@
         "usage_plan_id": "${aws_api_gateway_usage_plan.DocsFlow-Spring-Clean-Architecture-UsagePlan.id}"
       }
     },
+    "aws_cloudwatch_log_group": {
+      "DocsFlow-ApiGateway-AccessLogs": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-ApiGateway-AccessLogs",
+            "uniqueId": "DocsFlow-ApiGateway-AccessLogs"
+          }
+        },
+        "name": "/aws/api-gateway/DocsFlow-Spring-Clean-Architecture-API/demo",
+        "retention_in_days": 14
+      }
+    },
     "aws_iam_policy": {
       "DocsFlow-Spring-Clean-Architecture-Fun-Policy": {
         "//": {
@@ -231,6 +279,16 @@
       }
     },
     "aws_iam_role": {
+      "DocsFlow-ApiGateway-CloudWatch-Role": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-ApiGateway-CloudWatch-Role",
+            "uniqueId": "DocsFlow-ApiGateway-CloudWatch-Role"
+          }
+        },
+        "assume_role_policy": "{\n                    \"Version\": \"2012-10-17\",\n                    \"Statement\": [\n                        {\n                            \"Action\": \"sts:AssumeRole\",\n                            \"Principal\": {\"Service\": \"apigateway.amazonaws.com\"},\n                            \"Effect\": \"Allow\"\n                        }\n                    ]\n                }",
+        "name": "DocsFlow-ApiGateway-CloudWatch-Role"
+      },
       "DocsFlow-Spring-Clean-Architecture-Fun-Role": {
         "//": {
           "metadata": {
@@ -253,6 +311,18 @@
         "name": "DocsFlow-Spring-Clean-Architecture-Fun-RolePolicy",
         "policy": "${aws_iam_policy.DocsFlow-Spring-Clean-Architecture-Fun-Policy.policy}",
         "role": "${aws_iam_role.DocsFlow-Spring-Clean-Architecture-Fun-Role.name}"
+      }
+    },
+    "aws_iam_role_policy_attachment": {
+      "DocsFlow-ApiGateway-CloudWatch-RoleAttachment": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Spring-Clean-Architecture-Lambda/DocsFlow-ApiGateway-CloudWatch-RoleAttachment",
+            "uniqueId": "DocsFlow-ApiGateway-CloudWatch-RoleAttachment"
+          }
+        },
+        "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+        "role": "${aws_iam_role.DocsFlow-ApiGateway-CloudWatch-Role.name}"
       }
     },
     "aws_lambda_function": {
