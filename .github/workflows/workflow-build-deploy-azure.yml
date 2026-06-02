@@ -132,6 +132,19 @@ jobs:
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The Gradle azureFunctionsPackage task's final step ("Installing function
+      # extensions if needed") probes for the Core Tools version and fails if
+      # func is not on PATH — even though host.json uses an extension bundle, so
+      # nothing is actually installed. Core Tools is required for PACKAGING only;
+      # the deploy itself is handled by Azure/functions-action below.
+      - name: Install Azure Functions Core Tools v4
+        run: |
+          npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
       # Build the function staging folder only. azureFunctionsPackage is a
       # local-only task; unlike azureFunctionsDeploy it does NOT push the
       # invalid LinuxFxVersion site-config property that Flex Consumption
