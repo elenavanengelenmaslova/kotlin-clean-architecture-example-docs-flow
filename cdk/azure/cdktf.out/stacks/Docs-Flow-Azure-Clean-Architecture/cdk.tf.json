@@ -174,7 +174,7 @@
         "site_config": {
         },
         "storage_authentication_type": "SystemAssignedIdentity",
-        "storage_container_endpoint": "https://${var.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/deploymentpackage",
+        "storage_container_endpoint": "${azurerm_storage_account.docs-flow-sa.primary_blob_endpoint}deploymentpackage",
         "storage_container_type": "blobContainer"
       }
     },
@@ -335,7 +335,9 @@
         "container_name": "cleanarchterraformstorage",
         "key": "docs-flow-kscfunction/terraform.tfstate",
         "resource_group_name": "${resource_group_name}",
-        "storage_account_name": "${storage_account_name}"
+        "storage_account_name": "${storage_account_name}",
+        "use_azuread_auth": true,
+        "use_oidc": true
       }
     },
     "required_providers": {
@@ -356,10 +358,6 @@
     },
     "AZURE_SENDER_EMAIL": {
       "description": "Sender email address for notifications",
-      "type": "string"
-    },
-    "AZURE_STORAGE_ACCOUNT_NAME": {
-      "description": "Azure storage account name",
       "type": "string"
     },
     "AZURE_SUBSCRIPTION_ID": {

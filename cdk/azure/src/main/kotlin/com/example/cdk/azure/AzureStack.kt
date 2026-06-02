@@ -63,15 +63,6 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        val azureStorageAccountNameVar = TerraformVariable(
-            this,
-            "AZURE_STORAGE_ACCOUNT_NAME",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Azure storage account name")
-                .build()
-        )
-
         val azureResourceGroupNameVar = TerraformVariable(
             this,
             "AZURE_RESOURCE_GROUP_NAME",
@@ -122,7 +113,11 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        // Configure Terraform Backend to Use Azure Blob Storage
+        // Configure Terraform Backend to Use Azure Blob Storage.
+        // useAzureadAuth makes state access use Azure AD (the OIDC deploy
+        // principal's "Storage Blob Data Contributor" role on the state
+        // account) instead of fetching a shared account key — no long-lived
+        // storage credential is used for state.
         AzurermBackend(
             this,
             AzurermBackendConfig.builder()
@@ -130,6 +125,8 @@ class AzureStack(scope: Construct, id: String) :
                 .storageAccountName("\${storage_account_name}")
                 .containerName("cleanarchterraformstorage")
                 .key("docs-flow-kscfunction/terraform.tfstate")
+                .useAzureadAuth(true)
+                .useOidc(true)
                 .build()
         )
         // Reference the existing Resource Group
@@ -253,9 +250,15 @@ class AzureStack(scope: Construct, id: String) :
                 // managed identity (RBAC) — NO storage account access key. The
                 // identity is granted "Storage Blob Data Contributor" on the
                 // docsflow account below, which covers this container.
+                //
+                // The endpoint MUST point at the docsflow account (where the
+                // deploymentpackage container and the role assignment live),
+                // NOT at AZURE_STORAGE_ACCOUNT_NAME (that secret names the
+                // Terraform state account, on which the function app identity
+                // has no role).
                 .storageContainerType("blobContainer")
                 .storageContainerEndpoint(
-                    "https://${azureStorageAccountNameVar.stringValue}.blob.core.windows.net/deploymentpackage"
+                    "${storageAccountDocsFlow.primaryBlobEndpoint}deploymentpackage"
                 )
                 .storageAuthenticationType("SystemAssignedIdentity")
                 // Retain the existing Java 21 runtime (no Java 25). On the Flex
