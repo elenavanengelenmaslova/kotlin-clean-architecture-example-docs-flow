@@ -164,26 +164,32 @@ jobs:
 
       - name: Retrieve endpoint and run health check
         run: |
-          FUNC_URL=$(az functionapp show --name docs-flow-spring-clean-architecture-fun \
-            --resource-group $AZURE_RESOURCE_GROUP_NAME --query defaultHostName -o tsv)
+          # The function app hostname is deterministic for the Production slot
+          # (<app-name>.azurewebsites.net). We do NOT derive it from
+          # `az functionapp show --query defaultHostName`, which returns EMPTY
+          # for Flex Consumption apps (the default ARM view doesn't populate it),
+          # leaving FUNC_URL as just "https://" and failing curl with exit 6.
+          FUNC_HOST="docs-flow-spring-clean-architecture-fun.azurewebsites.net"
           FUNC_KEY=$(az functionapp keys list --name docs-flow-spring-clean-architecture-fun \
             --resource-group $AZURE_RESOURCE_GROUP_NAME --query functionKeys.default -o tsv)
           # Mask the function key so it can never be printed in logs (env dumps, set -x, etc.)
           echo "::add-mask::$FUNC_KEY"
-          FUNC_URL="https://$FUNC_URL"
-          for i in 1 2 3; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 \
+          FUNC_URL="https://$FUNC_HOST"
+          # Allow extra time/attempts: a Flex cold start brings up the JVM/Spring
+          # worker on first request, which can take longer than a warm instance.
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 60 \
               "$FUNC_URL/api/health?code=$FUNC_KEY")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed with status 200"
               exit 0
             fi
             echo "Attempt $i: received status $STATUS"
-            if [ "$i" -lt 3 ]; then
-              sleep 10
+            if [ "$i" -lt 5 ]; then
+              sleep 20
             fi
           done
-          echo "Health check failed after 3 attempts. Last status code: $STATUS"
+          echo "Health check failed after 5 attempts. Last status code: $STATUS"
           exit 1
 
 
