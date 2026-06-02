@@ -72,17 +72,6 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
-        val storageAccountAccessKeyVar = TerraformVariable(
-            this,
-            "AZURE_STORAGE_ACCOUNT_ACCESS_KEY",
-            TerraformVariableConfig.builder()
-                .type("string")
-                .description("Storage account access key")
-                .build()
-        )
-
-        val storageAccountAccessKey = storageAccountAccessKeyVar.stringValue
-
         val azureResourceGroupNameVar = TerraformVariable(
             this,
             "AZURE_RESOURCE_GROUP_NAME",
@@ -177,6 +166,23 @@ class AzureStack(scope: Construct, id: String) :
                 .build()
         )
 
+        // Deployment-package container for the Flex Consumption function app.
+        // Flex Consumption uploads the code package (via OneDeploy) into this
+        // dedicated blob container; it must exist before deployment, otherwise
+        // OneDeploy fails its StorageAccessibleCheck with "The specified
+        // container does not exist". The function app's system-assigned
+        // managed identity authenticates to it (no access key).
+        val deploymentContainer = StorageContainer(
+            this,
+            "docs-flow-deployment-container",
+            StorageContainerConfig.builder()
+                .name("deploymentpackage")
+                .storageAccountId(storageAccountDocsFlow.id)
+                .containerAccessType("private")
+                .dependsOn(listOf(storageAccountDocsFlow))
+                .build()
+        )
+
         // Create an App Service Plan (Flex Consumption)
         val servicePlan = ServicePlan(
             this, "CleanArchitectureAppServicePlan",
@@ -235,6 +241,7 @@ class AzureStack(scope: Construct, id: String) :
                         resourceGroup,
                         servicePlan,
                         appInsights,
+                        deploymentContainer,
                     )
                 )
                 .name(functionAppName)
@@ -242,13 +249,15 @@ class AzureStack(scope: Construct, id: String) :
                 .location(resourceGroup.location)
                 .servicePlanId(servicePlan.id)
                 // Flex Consumption hosts the code package in a blob container.
-                // Preserve the existing access-key based storage authentication.
+                // Authenticate to it with the function app's system-assigned
+                // managed identity (RBAC) — NO storage account access key. The
+                // identity is granted "Storage Blob Data Contributor" on the
+                // docsflow account below, which covers this container.
                 .storageContainerType("blobContainer")
                 .storageContainerEndpoint(
                     "https://${azureStorageAccountNameVar.stringValue}.blob.core.windows.net/deploymentpackage"
                 )
-                .storageAuthenticationType("StorageAccountConnectionString")
-                .storageAccessKey(storageAccountAccessKey)
+                .storageAuthenticationType("systemassignedidentity")
                 // Retain the existing Java 21 runtime (no Java 25). On the Flex
                 // Consumption resource the application stack is expressed via the
                 // top-level runtime_name / runtime_version instead of an

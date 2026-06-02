@@ -20,8 +20,6 @@ on:
         required: true
       AZURE_STORAGE_ACCOUNT_NAME:
         required: true
-      AZURE_STORAGE_ACCOUNT_ACCESS_KEY:
-        required: true
       azure_sender_email:
         required: true
       recipient_email:
@@ -30,7 +28,6 @@ on:
 env:
   DEPLOY_TARGET_REGION: ${{ inputs.azure_region }}
   AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
-  TF_VAR_AZURE_STORAGE_ACCOUNT_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_ACCESS_KEY }}
   AZURE_OIDC_CLIENT_ID: ${{ secrets.azure_oidc_client_id }}
   AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
   AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
@@ -99,6 +96,7 @@ jobs:
             -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}" \
             -target=azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic \
             -target=azurerm_storage_container.docs-flow-container \
+            -target=azurerm_storage_container.docs-flow-deployment-container \
             -target=azurerm_role_assignment.DocsFlowFunctionAppBlobStorageRole \
             -target=azurerm_role_assignment.DocsFlowFunctionAppStorageContributorRole \
             -target=azurerm_role_assignment.DocsFlowFunctionAppQueueContributorRole \

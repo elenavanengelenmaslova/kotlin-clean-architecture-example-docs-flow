@@ -159,7 +159,8 @@
         "depends_on": [
           "data.azurerm_resource_group.ExistingResourceGroup",
           "azurerm_service_plan.CleanArchitectureAppServicePlan",
-          "azurerm_application_insights.AppInsights"
+          "azurerm_application_insights.AppInsights",
+          "azurerm_storage_container.docs-flow-deployment-container"
         ],
         "identity": {
           "type": "SystemAssigned"
@@ -172,8 +173,7 @@
         "service_plan_id": "${azurerm_service_plan.CleanArchitectureAppServicePlan.id}",
         "site_config": {
         },
-        "storage_access_key": "${var.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}",
-        "storage_authentication_type": "StorageAccountConnectionString",
+        "storage_authentication_type": "systemassignedidentity",
         "storage_container_endpoint": "https://${var.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/deploymentpackage",
         "storage_container_type": "blobContainer"
       }
@@ -312,6 +312,20 @@
         ],
         "name": "docs-flow",
         "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
+      },
+      "docs-flow-deployment-container": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-deployment-container",
+            "uniqueId": "docs-flow-deployment-container"
+          }
+        },
+        "container_access_type": "private",
+        "depends_on": [
+          "azurerm_storage_account.docs-flow-sa"
+        ],
+        "name": "deploymentpackage",
+        "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
       }
     }
   },
@@ -342,10 +356,6 @@
     },
     "AZURE_SENDER_EMAIL": {
       "description": "Sender email address for notifications",
-      "type": "string"
-    },
-    "AZURE_STORAGE_ACCOUNT_ACCESS_KEY": {
-      "description": "Storage account access key",
       "type": "string"
     },
     "AZURE_STORAGE_ACCOUNT_NAME": {

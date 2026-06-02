@@ -164,6 +164,7 @@ If you plan to deploy the infrastructure, you may need to update the following:
 - Update the Azure data location if needed (default is "Europe")
 - The storage account for DocsFlow is set to "docsflow" (this storage account must exist before deployment)
 - The storage container for Terraform state is set to "cleanarchitecturesta" (this container must exist in the storage account before deployment)
+- The Flex Consumption function app's deployment-package container (`deploymentpackage`) and the document container (`docs-flow`) are created by the CDK stack — no manual setup required.
 
 Ensure to run `generateTerraform.sh` after any infra changes in the appropriate cdk module (aws or azure) to regenerate terraform configuration.
 
@@ -183,13 +184,14 @@ Configure the following GitHub repository secrets:
 - `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
 - `AZURE_OIDC_CLIENT_ID`: Your Azure OIDC client ID
 - `AZURE_TENANT_ID`: Your Azure tenant ID
-- `AZURE_STORAGE_ACCOUNT_NAME`: Your Azure storage account name
-- `AZURE_STORAGE_ACCOUNT_ACCESS_KEY`: Your Azure storage account access key for storage account that supports the Azure Function app deployment and operation (in this example it is called `cleanarchitecturesta`)
+- `AZURE_STORAGE_ACCOUNT_NAME`: Your Azure storage account name (used for the Terraform state backend and the Flex Consumption deployment-package container endpoint)
 
-### Azure Gradle Plugin
-The Azure Gradle plugin (com.microsoft.azure.azurefunctions) used for deploying Azure Functions requires a storage account access key and does not support managed identity authentication yet. This is why you need to provide the `AZURE_STORAGE_ACCOUNT_ACCESS_KEY` as a secret in your GitHub repository for the deployment workflow to function properly.
+### Azure Function Deployment (RBAC / managed identity)
+Azure Functions are deployed with the official [`Azure/functions-action`](https://github.com/Azure/functions-action), which supports the Flex Consumption plan and authenticates via OIDC — no storage account access key is required. The function app's **system-assigned managed identity** is granted `Storage Blob Data Contributor` on the `docsflow` storage account, which authorizes the Flex deployment-package upload (OneDeploy) and the app's blob access.
 
-**Note** that this storage account, e.g. `cleanarchitecturesta`,  is specifically used to support the Azure Function app deployment and operation. The application also uses a separate storage account for its core functionality (document storage - `docsflow`).
+> The Gradle Azure Functions plugin is used only to **package** the staging folder (`azureFunctionsPackage`); it is not used to deploy, because its last release predates Flex Consumption and pushes an unsupported `LinuxFxVersion` site setting.
+
+**Note** that the `docsflow` storage account is used both for the function app's deployment package (`deploymentpackage` container) and the application's document storage (`docs-flow` container).
 
 ## Testing: Postman Collections and Environment
 The `docs/postman` directory contains Postman collections and an environment file for testing the MockNest API:
