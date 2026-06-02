@@ -42,9 +42,55 @@ env:
   STACK_NAME: "Docs-Flow-Azure-Clean-Architecture"
 
 jobs:
+  # Decide whether infrastructure needs to be (re)deployed. For demos, a
+  # code-only push takes the fast path: package + deploy + health check, and
+  # skips the two Terraform jobs (deploy-infra, deploy-eventgrid). Infra runs
+  # only when CDK/workflow files change, or on a manual workflow_dispatch.
+  detect-changes:
+    name: Detect infra changes
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run: full infra deploy enabled."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git rev-parse HEAD^ 2>/dev/null || echo "")
+          else
+            BASE="$BEFORE"
+          fi
+          if [ -z "$BASE" ]; then
+            echo "No base commit to diff against; running full infra deploy to be safe."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+          # Infra = Azure CDK stack or the Azure deploy workflow itself.
+          if echo "$CHANGED" | grep -qE '^(cdk/azure/|\.github/workflows/.*azure)'; then
+            echo "Infra-related changes detected: full deploy (infra + app + event grid)."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "App-only changes: fast path (deploy app + health check, skip infra + event grid)."
+            echo "infra=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-infra:
     name: Kotlin Spring Cloud Function - Azure deployment
     runs-on: ubuntu-latest
+    needs: [ detect-changes ]
+    if: ${{ needs.detect-changes.outputs.infra == 'true' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +150,11 @@ jobs:
 
   deploy-app:
     runs-on: ubuntu-latest
-    needs: [ deploy-infra ]
+    needs: [ detect-changes, deploy-infra ]
+    # Always deploy the app. Run when deploy-infra succeeded OR was skipped
+    # (app-only fast path), but not if it actually ran and failed, and only if
+    # change detection itself succeeded.
+    if: ${{ always() && needs.detect-changes.result == 'success' && needs.deploy-infra.result != 'failure' && needs.deploy-infra.result != 'cancelled' }}
     name: Azure Functions deployment
 
     env:
@@ -195,7 +245,11 @@ jobs:
 
   deploy-eventgrid:
     runs-on: ubuntu-latest
-    needs: [ deploy-app ]
+    needs: [ detect-changes, deploy-app ]
+    # Only (re)create the Event Grid subscription on the full-infra path. On the
+    # app-only fast path it's skipped — the subscription already exists and the
+    # code deploy doesn't change it.
+    if: ${{ needs.detect-changes.outputs.infra == 'true' && needs.deploy-app.result == 'success' }}
     name: Event Grid blob-trigger subscription
 
     steps:
