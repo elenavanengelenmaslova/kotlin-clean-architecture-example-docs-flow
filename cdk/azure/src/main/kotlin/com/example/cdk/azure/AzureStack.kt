@@ -257,7 +257,7 @@ class AzureStack(scope: Construct, id: String) :
                 .storageContainerEndpoint(
                     "https://${azureStorageAccountNameVar.stringValue}.blob.core.windows.net/deploymentpackage"
                 )
-                .storageAuthenticationType("systemassignedidentity")
+                .storageAuthenticationType("SystemAssignedIdentity")
                 // Retain the existing Java 21 runtime (no Java 25). On the Flex
                 // Consumption resource the application stack is expressed via the
                 // top-level runtime_name / runtime_version instead of an
