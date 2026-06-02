@@ -273,7 +273,11 @@ class AzureStack(scope: Construct, id: String) :
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         "TriggerBlobStorage__accountName" to "docsflow",
                         "TriggerBlobStorage__credential" to "managedidentity",
-                        "WEBSITE_RUN_FROM_PACKAGE" to "1",
+                        // NOTE: WEBSITE_RUN_FROM_PACKAGE is intentionally NOT set.
+                        // It is a classic Consumption setting; Flex Consumption
+                        // delivers code via its deployment-storage container +
+                        // OneDeploy and REJECTS this app setting at deploy time
+                        // (InvalidAppSettingsException "not supported with this SKU").
                         "ACS_ENDPOINT" to "https://${acsService.hostname}",
                         "AZURE_SENDER_EMAIL" to senderEmailVar.stringValue,
                         "RECIPIENT_EMAIL" to recipientEmailVar.stringValue,

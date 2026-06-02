@@ -117,7 +117,7 @@ azurefunctions {
     resourceGroup = "CleanArchitectureRG-WEU"
     appName = "docs-flow-spring-clean-architecture-fun"
     region = "westeurope"
-    appSettings = mapOf(
-        "WEBSITE_RUN_FROM_PACKAGE" to "1"
-    )
+    // No appSettings here. App settings are managed by the CDK/Terraform stack
+    // (cdk/azure). In particular WEBSITE_RUN_FROM_PACKAGE must NOT be set on a
+    // Flex Consumption app — Flex rejects it ("not supported with this SKU").
 }

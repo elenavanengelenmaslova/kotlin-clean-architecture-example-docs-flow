@@ -154,8 +154,7 @@
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "RECIPIENT_EMAIL": "${var.RECIPIENT_EMAIL}",
           "TriggerBlobStorage__accountName": "docsflow",
-          "TriggerBlobStorage__credential": "managedidentity",
-          "WEBSITE_RUN_FROM_PACKAGE": "1"
+          "TriggerBlobStorage__credential": "managedidentity"
         },
         "depends_on": [
           "data.azurerm_resource_group.ExistingResourceGroup",
