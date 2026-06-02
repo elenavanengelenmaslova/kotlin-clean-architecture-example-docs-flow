@@ -110,6 +110,12 @@ jobs:
     needs: [ deploy-infra ]
     name: Azure Functions deployment
 
+    env:
+      # Staging folder produced by the Gradle azureFunctionsPackage task
+      # (build/azure-functions/<appName>). This is the artifact the
+      # Flex-compatible Azure/functions-action deploys.
+      FUNCTIONS_PACKAGE_PATH: software/infrastructure/azure/build/azure-functions/docs-flow-spring-clean-architecture-fun
+
     steps:
       - uses: actions/checkout@v4
 
@@ -126,19 +132,25 @@ jobs:
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install Azure Functions Core Tools v4
-        run: |
-          npm install -g azure-functions-core-tools@4 --unsafe-perm true
-      
-
-      - name: Deploy with gradle
+      # Build the function staging folder only. azureFunctionsPackage is a
+      # local-only task; unlike azureFunctionsDeploy it does NOT push the
+      # invalid LinuxFxVersion site-config property that Flex Consumption
+      # rejects. The deprecated Gradle deploy plugin (last release 1.16.1,
+      # never updated for Flex) is intentionally not used for deployment.
+      - name: Package function app with Gradle
         run: |
           cd ${GITHUB_WORKSPACE}
-          ./gradlew clean azureFunctionsDeploy
+          ./gradlew clean :infra-azure:azureFunctionsPackage
+
+      # Flex-aware deploy via the official Azure Functions action. It uses the
+      # OneDeploy mechanism Flex Consumption requires (classic zip deploy is
+      # unsupported on Flex) and resolves the Flex SKU automatically from the
+      # OIDC-authenticated az session, so no publish-profile/sku is needed.
+      - name: Deploy to Azure Functions (Flex Consumption)
+        uses: Azure/functions-action@v1
+        with:
+          app-name: docs-flow-spring-clean-architecture-fun
+          package: ${{ env.FUNCTIONS_PACKAGE_PATH }}
 
       - name: Retrieve endpoint and run health check
         run: |
