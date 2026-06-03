@@ -271,28 +271,77 @@ jobs:
         with:
           terraform_version: 1.10.5
 
-      # Phase 3: full apply (no -target). The function code is now deployed, so
-      # the blob-extension webhook endpoint is live and Event Grid's webhook
-      # validation handshake succeeds when the subscription is created. A full
-      # apply also reconciles any drift left by the targeted phase-1 apply.
+      # Phase 3: recreate the Event Grid subscription AFTER the host is healthy.
       #
-      # The event subscription is force-REPLACED on every full-infra apply. The
-      # subscription's webhook URL embeds the function app's `blobs_extension`
-      # system key (read via the azurerm_function_app_host_keys data source).
-      # When the function app is recreated (e.g. a plan/SKU change), that system
-      # key is rotated, but Event Grid does NOT allow updating an existing
-      # subscription's endpoint URL in place — so without a replace the
-      # subscription keeps posting the OLD key and every delivery fails with 401
-      # (0 successful deliveries). Replacing it forces Terraform to re-read the
-      # current key and recreate the subscription against the live endpoint.
-      # Code-only demo deploys take the fast path and skip this job entirely;
-      # they don't rotate the key, so the subscription stays valid between runs.
-      - name: Create Event Grid subscription with Terraform
+      # Two-step apply on purpose. The subscription's webhook URL embeds the
+      # function app's `blobs_extension` system key (read via the
+      # azurerm_function_app_host_keys data source). Event Grid validates the
+      # webhook with a SYNCHRONOUS handshake (an HTTP POST) when the
+      # subscription is created — so the blob-extension endpoint must be live
+      # and responding at that moment.
+      #
+      # The trap: any change that modifies the function app (e.g. an app-setting
+      # change such as AzureFunctionsWebHost__hostid) RESTARTS the host and
+      # forces it to re-index functions. If the subscription create runs in the
+      # same apply, the handshake races the restart and fails with
+      # "URL validation ... response code Unknown".
+      #
+      # So: (step 1) apply everything EXCEPT the subscription, which lets any
+      # function-app modification + restart complete; (step 2) poll the
+      # blob-extension webhook until it responds, then (step 3) apply/replace
+      # the subscription against the now-stable host. The -replace also forces a
+      # re-read of the current blobs_extension key, which is rotated whenever the
+      # function app is recreated (Event Grid can't update an endpoint URL in
+      # place). Code-only demo deploys skip this job; they don't rotate the key.
+      - name: Apply infra (excluding Event Grid subscription) and let host settle
         run: |
           cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
           terraform init -reconfigure \
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
             -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}"
+          terraform apply -auto-approve \
+            -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
+            -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
+            -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
+            -var="AZURE_RESOURCE_GROUP_NAME=${AZURE_RESOURCE_GROUP_NAME}" \
+            -var="AZURE_SENDER_EMAIL=${TF_VAR_AZURE_SENDER_EMAIL}" \
+            -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}" \
+            -target=azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp \
+            -target=azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic \
+            -target=azurerm_monitor_diagnostic_setting.DocsFlowBlobTopicDiagnostics
+
+      - name: Wait for blob-extension webhook to be ready
+        run: |
+          # The blob-extension webhook must answer Event Grid's validation
+          # handshake. After a host restart (e.g. an app-setting change) it can
+          # take a bit to re-index. Poll until it responds before creating the
+          # subscription. The system key is fetched and used inside this single
+          # step and masked so it never lands in logs.
+          FUNC_HOST="docs-flow-spring-clean-architecture-fun.azurewebsites.net"
+          EXT_KEY=$(az functionapp keys list \
+            --name docs-flow-spring-clean-architecture-fun \
+            --resource-group "${AZURE_RESOURCE_GROUP_NAME}" \
+            --query "systemKeys.blobs_extension" -o tsv)
+          echo "::add-mask::$EXT_KEY"
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 -X POST \
+              "https://$FUNC_HOST/runtime/webhooks/blobs?functionName=Host.Functions.ProcessDocument&code=$EXT_KEY" \
+              -H "Content-Type: application/json" \
+              -H "aeg-event-type: Notification" \
+              -d '[]')
+            if [ "$STATUS" = "202" ] || [ "$STATUS" = "200" ]; then
+              echo "Blob-extension webhook ready (status $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i: webhook returned $STATUS, waiting 15s..."
+            sleep 15
+          done
+          echo "Blob-extension webhook not ready after retries (last status $STATUS)"
+          exit 1
+
+      - name: Create Event Grid subscription with Terraform
+        run: |
+          cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
           terraform apply -auto-approve \
             -replace=azurerm_eventgrid_system_topic_event_subscription.DocsFlowBlobEventSubscription \
             -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
