@@ -292,14 +292,24 @@ class AzureStack(scope: Construct, id: String) :
                         "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL" to "ERROR",
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         // AzureWebJobsStorage is the host's own runtime storage
-                        // (used for function indexing, leases, etc.). With the
-                        // access key removed, the platform-injected keyed
-                        // connection string had an EMPTY AccountKey, so the host
-                        // could not authenticate and indexed 0 functions.
-                        // Use an identity-based connection instead: the function
-                        // app's system-assigned managed identity already holds
+                        // (used for function indexing, leases, the
+                        // azure-webjobs-secrets container, etc.). Authenticate
+                        // with the function app's system-assigned managed
+                        // identity (no shared key): the identity already holds
                         // "Storage Blob Data Contributor" and "Storage Queue
                         // Data Contributor" on the docsflow account.
+                        //
+                        // Use the `__accountName` form (matching
+                        // TriggerBlobStorage__accountName below). The Functions
+                        // tooling/runtime specifically probes for either a keyed
+                        // `AzureWebJobsStorage` OR `AzureWebJobsStorage__accountName`;
+                        // the `__blobServiceUri`/`__queueServiceUri` form alone is
+                        // NOT recognized as host storage, which left the host
+                        // without a usable identity-based connection and falling
+                        // back to a (failing) shared-key connection. The
+                        // blob/queue service URIs are kept for explicit endpoint
+                        // resolution.
+                        "AzureWebJobsStorage__accountName" to "docsflow",
                         "AzureWebJobsStorage__credential" to "managedidentity",
                         "AzureWebJobsStorage__blobServiceUri" to storageAccountDocsFlow.primaryBlobEndpoint,
                         "AzureWebJobsStorage__queueServiceUri" to storageAccountDocsFlow.primaryQueueEndpoint,

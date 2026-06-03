@@ -151,6 +151,7 @@
           "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL": "INFO",
           "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL": "ERROR",
           "AZURE_SENDER_EMAIL": "${var.AZURE_SENDER_EMAIL}",
+          "AzureWebJobsStorage__accountName": "docsflow",
           "AzureWebJobsStorage__blobServiceUri": "${azurerm_storage_account.docs-flow-sa.primary_blob_endpoint}",
           "AzureWebJobsStorage__credential": "managedidentity",
           "AzureWebJobsStorage__queueServiceUri": "${azurerm_storage_account.docs-flow-sa.primary_queue_endpoint}",
