@@ -52,7 +52,7 @@ jobs:
     outputs:
       infra: ${{ steps.changes.outputs.infra }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -93,10 +93,10 @@ jobs:
     if: ${{ needs.detect-changes.outputs.infra == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'adopt'
@@ -109,7 +109,7 @@ jobs:
           subscription-id: ${{ secrets.azure_subscription_id }}
 
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -164,10 +164,10 @@ jobs:
       FUNCTIONS_PACKAGE_PATH: software/infrastructure/azure/build/azure-functions/docs-flow-clean-arch-fun
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'adopt'
@@ -179,7 +179,7 @@ jobs:
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -253,7 +253,7 @@ jobs:
     name: Event Grid blob-trigger subscription
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Azure Login with OIDC
         uses: azure/login@v1
@@ -262,7 +262,7 @@ jobs:
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 

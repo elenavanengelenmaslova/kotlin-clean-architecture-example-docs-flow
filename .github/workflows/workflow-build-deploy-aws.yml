@@ -32,9 +32,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: "adopt"
@@ -76,9 +76,9 @@ jobs:
     name: ${{ matrix.config.component-name }} deployment
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'adopt'
@@ -100,7 +100,7 @@ jobs:
       - name: Upload Lambda JAR to S3
         run: aws s3 cp build/dist/docs-flow-aws-function.jar s3://lambda-deployment-clean-architecture-example/docs-flow-aws-function.jar --region ${{ inputs.aws_region }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
