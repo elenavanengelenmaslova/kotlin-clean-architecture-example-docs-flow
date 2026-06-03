@@ -114,7 +114,7 @@ jobs:
           node-version: "22"
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3.1.2
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.10.5
 
@@ -290,7 +290,7 @@ jobs:
           node-version: "22"
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3.1.2
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.10.5
 
@@ -365,8 +365,19 @@ jobs:
       - name: Create Event Grid subscription with Terraform
         run: |
           cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
+          # Scope this apply to ONLY the event subscription (-target). Without it,
+          # a full apply also reconciles the function app — which has a perpetual
+          # App Insights diff (APPINSIGHTS_INSTRUMENTATIONKEY in app_settings vs
+          # site_config.application_insights_key) that RESTARTS the host on every
+          # apply. That restart races Event Grid's synchronous webhook-validation
+          # handshake and fails the subscription create with 502 Bad Gateway.
+          # Targeting the subscription means the host is NOT touched here (step 1
+          # already applied app changes; step 2 confirmed the webhook is live), so
+          # validation hits a stable host. The host-keys data source is still read
+          # to populate the webhook URL's current blobs_extension key.
           terraform apply -auto-approve \
             -replace=azurerm_eventgrid_system_topic_event_subscription.DocsFlowBlobEventSubscription \
+            -target=azurerm_eventgrid_system_topic_event_subscription.DocsFlowBlobEventSubscription \
             -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \

@@ -83,7 +83,7 @@ jobs:
           java-version: '21'
           distribution: 'adopt'
       - name: Download Artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: LambdaArtifacts
           path: build/dist/
@@ -92,7 +92,7 @@ jobs:
         run: sha256sum build/dist/docs-flow-aws-function.jar
 
       - name: Configure aws credentials for CDK deployment
-        uses: aws-actions/configure-aws-credentials@v4.1.0
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::021259937026:role/GitHubOIDCAdmin
           aws-region: ${{ inputs.aws_region }}
@@ -106,7 +106,7 @@ jobs:
 
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3.1.2
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.10.5
 
