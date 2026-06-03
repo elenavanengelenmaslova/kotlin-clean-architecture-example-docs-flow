@@ -18,6 +18,9 @@ import com.hashicorp.cdktf.providers.azurerm.eventgrid_system_topic_event_subscr
 import com.hashicorp.cdktf.providers.azurerm.function_app_flex_consumption.*
 import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspace
 import com.hashicorp.cdktf.providers.azurerm.log_analytics_workspace.LogAnalyticsWorkspaceConfig
+import com.hashicorp.cdktf.providers.azurerm.monitor_diagnostic_setting.MonitorDiagnosticSetting
+import com.hashicorp.cdktf.providers.azurerm.monitor_diagnostic_setting.MonitorDiagnosticSettingConfig
+import com.hashicorp.cdktf.providers.azurerm.monitor_diagnostic_setting.MonitorDiagnosticSettingEnabledLog
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProvider
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderConfig
 import com.hashicorp.cdktf.providers.azurerm.provider.AzurermProviderFeatures
@@ -447,6 +450,30 @@ class AzureStack(scope: Construct, id: String) :
                         .build()
                 )
                 .dependsOn(listOf(blobSystemTopic, functionApp))
+                .build()
+        )
+
+        // Diagnostic setting on the system topic that streams Event Grid
+        // DeliveryFailures to the existing Log Analytics workspace. This makes
+        // the actual delivery status code (e.g. 401 from a stale blob-extension
+        // webhook key) visible from the portal / Log Analytics instead of only
+        // the metric counts, so a broken blob-trigger delivery can be diagnosed
+        // without re-instrumenting.
+        MonitorDiagnosticSetting(
+            this,
+            "DocsFlowBlobTopicDiagnostics",
+            MonitorDiagnosticSettingConfig.builder()
+                .name("eg-delivery-failures")
+                .targetResourceId(blobSystemTopic.id)
+                .logAnalyticsWorkspaceId(logAnalyticsWorkspace.id)
+                .enabledLog(
+                    listOf(
+                        MonitorDiagnosticSettingEnabledLog.builder()
+                            .category("DeliveryFailures")
+                            .build()
+                    )
+                )
+                .dependsOn(listOf(blobSystemTopic, logAnalyticsWorkspace))
                 .build()
         )
 

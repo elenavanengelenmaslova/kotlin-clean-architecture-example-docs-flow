@@ -275,6 +275,18 @@ jobs:
       # the blob-extension webhook endpoint is live and Event Grid's webhook
       # validation handshake succeeds when the subscription is created. A full
       # apply also reconciles any drift left by the targeted phase-1 apply.
+      #
+      # The event subscription is force-REPLACED on every full-infra apply. The
+      # subscription's webhook URL embeds the function app's `blobs_extension`
+      # system key (read via the azurerm_function_app_host_keys data source).
+      # When the function app is recreated (e.g. a plan/SKU change), that system
+      # key is rotated, but Event Grid does NOT allow updating an existing
+      # subscription's endpoint URL in place — so without a replace the
+      # subscription keeps posting the OLD key and every delivery fails with 401
+      # (0 successful deliveries). Replacing it forces Terraform to re-read the
+      # current key and recreate the subscription against the live endpoint.
+      # Code-only demo deploys take the fast path and skip this job entirely;
+      # they don't rotate the key, so the subscription stays valid between runs.
       - name: Create Event Grid subscription with Terraform
         run: |
           cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
@@ -282,6 +294,7 @@ jobs:
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
             -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}"
           terraform apply -auto-approve \
+            -replace=azurerm_eventgrid_system_topic_event_subscription.DocsFlowBlobEventSubscription \
             -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \

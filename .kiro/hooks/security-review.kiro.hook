@@ -1,13 +1,13 @@
 {
   "name": "Security Review",
   "version": "1.0.0",
-  "description": "Review changes for PII in DB models, unsafe logging, missing authorization, missing credit checks, frontend-controlled AI parameters, overly broad IAM, missing idempotency, missing rate limits, committed secrets, and SAM security issues",
+  "description": "Review changes for unsafe logging, missing authorization, missing credit checks, frontend-controlled AI parameters, overly broad IAM/Azure RBAC, shared keys instead of managed identity, missing idempotency, missing rate limits, committed secrets, and Terraform CDK infrastructure security issues",
   "when": {
     "type": "preToolUse",
     "toolTypes": ["write"]
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Before writing this file, review the change for security issues. Check for: (1) direct PII fields in application DB models (email, name, phone, address, payment details are forbidden — use Cognito subject ID only), (2) unsafe logging of prompts containing user answers or source material, (3) missing authorization checks on endpoints, (4) missing credit checks before AI calls, (5) frontend-controlled model/token/source/credit/prompt fields (these must be server-controlled), (6) overly broad IAM permissions in SAM templates, (7) missing idempotency keys for credit-spending operations, (8) missing rate limits on AI endpoints, (9) secrets or credentials committed in code, (10) SAM security issues (missing encryption, public S3 buckets, missing log retention). If any issues are found, describe them clearly. If no issues, confirm the change is safe."
+    "prompt": "Before writing this file, review the change for security issues. Check for: (1) unsafe logging of secrets, credentials, or prompts containing user answers or source material, (2) missing authorization checks on endpoints, (3) missing credit checks before AI calls, (4) frontend-controlled model/token/source/credit/prompt fields (these must be server-controlled), (5) overly broad IAM permissions in Terraform CDK (AWS IAM policies) or Azure RBAC role definitions/assignments (prefer least-privilege scoped built-in roles; flag wildcard actions and Owner/Contributor where a narrower role suffices), (6) Azure identity hygiene — resources should authenticate with managed identity (system- or user-assigned) and RBAC rather than shared account keys, connection strings, or SAS tokens; flag any reintroduced shared-key/connection-string auth, (7) missing idempotency keys for credit-spending operations, (8) missing rate limits on AI endpoints, (9) secrets or credentials committed in code, (10) Terraform CDK infrastructure security issues (missing encryption at rest/in transit, public S3 buckets or public blob containers, missing log retention). If any issues are found, describe them clearly. If no issues, confirm the change is safe."
   }
 }
