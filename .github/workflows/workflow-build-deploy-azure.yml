@@ -102,7 +102,7 @@ jobs:
           distribution: 'adopt'
 
       - name: Azure Login with OIDC
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.azure_oidc_client_id }}
           tenant-id: ${{ secrets.azure_tenant_id }}
@@ -173,7 +173,7 @@ jobs:
           distribution: 'adopt'
 
       - name: Login to Azure with OIDC
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.azure_oidc_client_id }}
           tenant-id: ${{ secrets.azure_tenant_id }}
@@ -211,6 +211,29 @@ jobs:
         with:
           app-name: docs-flow-clean-arch-fun
           package: ${{ env.FUNCTIONS_PACKAGE_PATH }}
+
+      # Azure/functions-action re-injects a keyed `AzureWebJobsStorage`
+      # connection string on every deploy (its storage-validation step). That
+      # keyed setting shadows the identity-based AzureWebJobsStorage__* settings
+      # the CDK declares and reintroduces a shared-account-key secret on the app,
+      # against this project's managed-identity-only policy. Remove it right
+      # after deploy so the host runs purely on the system-assigned identity
+      # (AzureWebJobsStorage__accountName + __credential=managedidentity, with
+      # the RBAC role assignments granting data-plane access). `delete` is a
+      # no-op if the setting is already absent, so this is safe/idempotent.
+      - name: Remove injected keyed AzureWebJobsStorage (enforce managed identity)
+        run: |
+          echo "Removing keyed AzureWebJobsStorage if present (identity-based __accountName remains)..."
+          az functionapp config appsettings delete \
+            --name docs-flow-clean-arch-fun \
+            --resource-group "${AZURE_RESOURCE_GROUP_NAME}" \
+            --setting-names AzureWebJobsStorage \
+            --output none
+          echo "Done. Remaining AzureWebJobsStorage* settings (names only):"
+          az functionapp config appsettings list \
+            --name docs-flow-clean-arch-fun \
+            --resource-group "${AZURE_RESOURCE_GROUP_NAME}" \
+            --query "[?starts_with(name,'AzureWebJobsStorage')].name" -o tsv
 
       - name: Retrieve endpoint and run health check
         run: |
@@ -256,7 +279,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Azure Login with OIDC
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.azure_oidc_client_id }}
           tenant-id: ${{ secrets.azure_tenant_id }}

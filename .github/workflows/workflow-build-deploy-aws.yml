@@ -50,7 +50,7 @@ jobs:
           rm -f ~/.gradle/caches/modules-2/gc.properties
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           # Artifact name
           name: LambdaArtifacts
@@ -83,7 +83,7 @@ jobs:
           java-version: '21'
           distribution: 'adopt'
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: LambdaArtifacts
           path: build/dist/
