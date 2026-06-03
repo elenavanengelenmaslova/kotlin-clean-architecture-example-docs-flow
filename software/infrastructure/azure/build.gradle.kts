@@ -115,7 +115,7 @@ tasks.named("compileJava") {
 
 azurefunctions {
     resourceGroup = "CleanArchitectureRG-WEU"
-    appName = "docs-flow-spring-clean-architecture-fun"
+    appName = "docs-flow-clean-arch-fun"
     region = "westeurope"
     // No appSettings here. App settings are managed by the CDK/Terraform stack
     // (cdk/azure). In particular WEBSITE_RUN_FROM_PACKAGE must NOT be set on a

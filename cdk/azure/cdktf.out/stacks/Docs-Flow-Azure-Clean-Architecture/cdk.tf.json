@@ -151,7 +151,6 @@
           "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL": "INFO",
           "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL": "ERROR",
           "AZURE_SENDER_EMAIL": "${var.AZURE_SENDER_EMAIL}",
-          "AzureFunctionsWebHost__hostid": "docs-flow-clean-arch-fun",
           "AzureWebJobsStorage__blobServiceUri": "${azurerm_storage_account.docs-flow-sa.primary_blob_endpoint}",
           "AzureWebJobsStorage__credential": "managedidentity",
           "AzureWebJobsStorage__queueServiceUri": "${azurerm_storage_account.docs-flow-sa.primary_queue_endpoint}",
@@ -170,7 +169,7 @@
           "type": "SystemAssigned"
         },
         "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
-        "name": "docs-flow-spring-clean-architecture-fun",
+        "name": "docs-flow-clean-arch-fun",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
         "runtime_name": "java",
         "runtime_version": "21",

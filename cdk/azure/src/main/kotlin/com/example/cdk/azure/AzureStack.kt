@@ -94,8 +94,13 @@ class AzureStack(scope: Construct, id: String) :
         )
 
         val resourceGroupName = azureResourceGroupNameVar.stringValue
+        // Keep the function app name <= 32 chars. The Functions platform derives
+        // the default host ID from the (slot) host name truncated to 32 chars;
+        // a longer name risks host ID truncation/collisions and, on Functions v4,
+        // a hard host shutdown. At 24 chars this name stays within the limit, so
+        // no explicit AzureFunctionsWebHost__hostid override is needed.
         val functionAppName =
-            "docs-flow-spring-clean-architecture-fun"
+            "docs-flow-clean-arch-fun"
         val appServicePlanName =
             "clean_architecture_app_plan"
 
@@ -286,16 +291,6 @@ class AzureStack(scope: Construct, id: String) :
                         "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL" to "INFO",
                         "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL" to "ERROR",
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
-                        // Explicit Functions host ID. The function app name
-                        // (docs-flow-spring-clean-architecture-fun, 39 chars)
-                        // exceeds the 32-char limit the platform uses to derive
-                        // a default host ID, so it gets truncated — which risks
-                        // host ID collisions and, on Functions v4, a hard host
-                        // shutdown ("Failed to start a new language worker").
-                        // Pin a stable, compliant ID (<=32 chars, lowercase
-                        // letters/numbers/dashes, no leading/trailing/consecutive
-                        // dashes) so the host ID is deterministic and unique.
-                        "AzureFunctionsWebHost__hostid" to "docs-flow-clean-arch-fun",
                         // AzureWebJobsStorage is the host's own runtime storage
                         // (used for function indexing, leases, etc.). With the
                         // access key removed, the platform-injected keyed
