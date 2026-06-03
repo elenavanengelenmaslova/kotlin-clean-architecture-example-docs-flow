@@ -20,13 +20,14 @@ on:
         required: true
       AZURE_STORAGE_ACCOUNT_NAME:
         required: true
-      AZURE_STORAGE_ACCOUNT_ACCESS_KEY:
+      azure_sender_email:
+        required: true
+      recipient_email:
         required: true
 
 env:
   DEPLOY_TARGET_REGION: ${{ inputs.azure_region }}
   AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
-  TF_VAR_AZURE_STORAGE_ACCOUNT_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_ACCESS_KEY }}
   AZURE_OIDC_CLIENT_ID: ${{ secrets.azure_oidc_client_id }}
   AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
   AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
@@ -36,92 +37,350 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
   ARM_TENANT_ID: ${{ secrets.azure_tenant_id }}
   ARM_USE_OIDC: true
+  TF_VAR_AZURE_SENDER_EMAIL: ${{ secrets.azure_sender_email }}
+  TF_VAR_RECIPIENT_EMAIL: ${{ secrets.recipient_email }}
+  STACK_NAME: "Docs-Flow-Azure-Clean-Architecture"
 
 jobs:
+  # Decide whether infrastructure needs to be (re)deployed. For demos, a
+  # code-only push takes the fast path: package + deploy + health check, and
+  # skips the two Terraform jobs (deploy-infra, deploy-eventgrid). Infra runs
+  # only when CDK/workflow files change, or on a manual workflow_dispatch.
+  detect-changes:
+    name: Detect infra changes
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run: full infra deploy enabled."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git rev-parse HEAD^ 2>/dev/null || echo "")
+          else
+            BASE="$BEFORE"
+          fi
+          if [ -z "$BASE" ]; then
+            echo "No base commit to diff against; running full infra deploy to be safe."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+          # Infra = Azure CDK stack or the Azure deploy workflow itself.
+          if echo "$CHANGED" | grep -qE '^(cdk/azure/|\.github/workflows/.*azure)'; then
+            echo "Infra-related changes detected: full deploy (infra + app + event grid)."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "App-only changes: fast path (deploy app + health check, skip infra + event grid)."
+            echo "infra=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-infra:
     name: Kotlin Spring Cloud Function - Azure deployment
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        config:
-          - {
-            component-name: "Docs Flow Spring Clean Architecture Azure Functions",
-            stack-name: "Docs-Flow-Azure-Clean-Architecture"
-          }
+    needs: [ detect-changes ]
+    if: ${{ needs.detect-changes.outputs.infra == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'adopt'
 
       - name: Azure Login with OIDC
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.azure_oidc_client_id }}
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3.1.2
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.10.5
 
-      - name: Deploy infrastructure with Terraform
+      # Phase 1: provision all infrastructure EXCEPT the Event Grid event
+      # subscription. The subscription's creation triggers a synchronous
+      # webhook-validation handshake against the function app's blob-extension
+      # endpoint, which only exists once the function CODE is deployed
+      # (deploy-app job). The subscription is a leaf resource (nothing depends
+      # on it), so a targeted apply of everything else stands up the function
+      # app without attempting that handshake. The subscription is created
+      # later in the deploy-eventgrid job, after the code is live.
+      - name: Deploy infrastructure with Terraform (excluding Event Grid subscription)
         run: |
-          cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${{ matrix.config.stack-name }}
+          cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
           terraform init -reconfigure \
             -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
-            -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}" 
-          terraform plan \
+            -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}"
+          terraform apply -auto-approve \
             -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
             -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
             -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
-            -var="AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}" \
             -var="AZURE_RESOURCE_GROUP_NAME=${AZURE_RESOURCE_GROUP_NAME}" \
-            -out=tfplan
-          terraform apply -auto-approve tfplan
+            -var="AZURE_SENDER_EMAIL=${TF_VAR_AZURE_SENDER_EMAIL}" \
+            -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}" \
+            -target=azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic \
+            -target=azurerm_storage_container.docs-flow-container \
+            -target=azurerm_storage_container.docs-flow-deployment-container \
+            -target=azurerm_role_assignment.DocsFlowFunctionAppBlobStorageRole \
+            -target=azurerm_role_assignment.DocsFlowFunctionAppStorageContributorRole \
+            -target=azurerm_role_assignment.DocsFlowFunctionAppQueueContributorRole \
+            -target=azurerm_role_assignment.DocsFlowFunctionAppACSEmailSenderRole
 
 
   deploy-app:
     runs-on: ubuntu-latest
-    needs: [ deploy-infra ]
+    needs: [ detect-changes, deploy-infra ]
+    # Always deploy the app. Run when deploy-infra succeeded OR was skipped
+    # (app-only fast path), but not if it actually ran and failed, and only if
+    # change detection itself succeeded.
+    if: ${{ always() && needs.detect-changes.result == 'success' && needs.deploy-infra.result != 'failure' && needs.deploy-infra.result != 'cancelled' }}
     name: Azure Functions deployment
 
+    env:
+      # Staging folder produced by the Gradle azureFunctionsPackage task
+      # (build/azure-functions/<appName>). This is the artifact the
+      # Flex-compatible Azure/functions-action deploys.
+      FUNCTIONS_PACKAGE_PATH: software/infrastructure/azure/build/azure-functions/docs-flow-clean-arch-fun
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'adopt'
 
       - name: Login to Azure with OIDC
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.azure_oidc_client_id }}
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
+      # The Gradle azureFunctionsPackage task's final step ("Installing function
+      # extensions if needed") probes for the Core Tools version and fails if
+      # func is not on PATH — even though host.json uses an extension bundle, so
+      # nothing is actually installed. Core Tools is required for PACKAGING only;
+      # the deploy itself is handled by Azure/functions-action below.
       - name: Install Azure Functions Core Tools v4
         run: |
           npm install -g azure-functions-core-tools@4 --unsafe-perm true
-      
 
-      - name: Deploy with gradle
+      # Build the function staging folder only. azureFunctionsPackage is a
+      # local-only task; unlike azureFunctionsDeploy it does NOT push the
+      # invalid LinuxFxVersion site-config property that Flex Consumption
+      # rejects. The deprecated Gradle deploy plugin (last release 1.16.1,
+      # never updated for Flex) is intentionally not used for deployment.
+      - name: Package function app with Gradle
         run: |
           cd ${GITHUB_WORKSPACE}
-          ./gradlew clean azureFunctionsDeploy
+          ./gradlew clean :infra-azure:azureFunctionsPackage
+
+      # Flex-aware deploy via the official Azure Functions action. It uses the
+      # OneDeploy mechanism Flex Consumption requires (classic zip deploy is
+      # unsupported on Flex) and resolves the Flex SKU automatically from the
+      # OIDC-authenticated az session, so no publish-profile/sku is needed.
+      - name: Deploy to Azure Functions (Flex Consumption)
+        uses: Azure/functions-action@v1
+        with:
+          app-name: docs-flow-clean-arch-fun
+          package: ${{ env.FUNCTIONS_PACKAGE_PATH }}
+
+      # Azure/functions-action re-injects a keyed `AzureWebJobsStorage`
+      # connection string on every deploy (its storage-validation step). That
+      # keyed setting shadows the identity-based AzureWebJobsStorage__* settings
+      # the CDK declares and reintroduces a shared-account-key secret on the app,
+      # against this project's managed-identity-only policy. Remove it right
+      # after deploy so the host runs purely on the system-assigned identity
+      # (AzureWebJobsStorage__accountName + __credential=managedidentity, with
+      # the RBAC role assignments granting data-plane access). `delete` is a
+      # no-op if the setting is already absent, so this is safe/idempotent.
+      - name: Remove injected keyed AzureWebJobsStorage (enforce managed identity)
+        run: |
+          echo "Removing keyed AzureWebJobsStorage if present (identity-based __accountName remains)..."
+          az functionapp config appsettings delete \
+            --name docs-flow-clean-arch-fun \
+            --resource-group "${AZURE_RESOURCE_GROUP_NAME}" \
+            --setting-names AzureWebJobsStorage \
+            --output none
+          echo "Done. Remaining AzureWebJobsStorage* settings (names only):"
+          az functionapp config appsettings list \
+            --name docs-flow-clean-arch-fun \
+            --resource-group "${AZURE_RESOURCE_GROUP_NAME}" \
+            --query "[?starts_with(name,'AzureWebJobsStorage')].name" -o tsv
+
+      - name: Retrieve endpoint and run health check
+        run: |
+          # The function app hostname is deterministic for the Production slot
+          # (<app-name>.azurewebsites.net). We do NOT derive it from
+          # `az functionapp show --query defaultHostName`, which returns EMPTY
+          # for Flex Consumption apps (the default ARM view doesn't populate it),
+          # leaving FUNC_URL as just "https://" and failing curl with exit 6.
+          FUNC_HOST="docs-flow-clean-arch-fun.azurewebsites.net"
+          FUNC_KEY=$(az functionapp keys list --name docs-flow-clean-arch-fun \
+            --resource-group $AZURE_RESOURCE_GROUP_NAME --query functionKeys.default -o tsv)
+          # Mask the function key so it can never be printed in logs (env dumps, set -x, etc.)
+          echo "::add-mask::$FUNC_KEY"
+          FUNC_URL="https://$FUNC_HOST"
+          # Allow extra time/attempts: a Flex cold start brings up the JVM/Spring
+          # worker on first request, which can take longer than a warm instance.
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 60 \
+              "$FUNC_URL/api/health?code=$FUNC_KEY")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed with status 200"
+              exit 0
+            fi
+            echo "Attempt $i: received status $STATUS"
+            if [ "$i" -lt 5 ]; then
+              sleep 20
+            fi
+          done
+          echo "Health check failed after 5 attempts. Last status code: $STATUS"
+          exit 1
+
+
+  deploy-eventgrid:
+    runs-on: ubuntu-latest
+    needs: [ detect-changes, deploy-app ]
+    # Only (re)create the Event Grid subscription on the full-infra path. On the
+    # app-only fast path it's skipped — the subscription already exists and the
+    # code deploy doesn't change it.
+    if: ${{ needs.detect-changes.outputs.infra == 'true' && needs.deploy-app.result == 'success' }}
+    name: Event Grid blob-trigger subscription
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.azure_oidc_client_id }}
+          tenant-id: ${{ secrets.azure_tenant_id }}
+          subscription-id: ${{ secrets.azure_subscription_id }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.10.5
+
+      # Phase 3: recreate the Event Grid subscription AFTER the host is healthy.
+      #
+      # Two-step apply on purpose. The subscription's webhook URL embeds the
+      # function app's `blobs_extension` system key (read via the
+      # azurerm_function_app_host_keys data source). Event Grid validates the
+      # webhook with a SYNCHRONOUS handshake (an HTTP POST) when the
+      # subscription is created — so the blob-extension endpoint must be live
+      # and responding at that moment.
+      #
+      # The trap: any change that modifies the function app (e.g. an app-setting
+      # change such as AzureFunctionsWebHost__hostid) RESTARTS the host and
+      # forces it to re-index functions. If the subscription create runs in the
+      # same apply, the handshake races the restart and fails with
+      # "URL validation ... response code Unknown".
+      #
+      # So: (step 1) apply everything EXCEPT the subscription, which lets any
+      # function-app modification + restart complete; (step 2) poll the
+      # blob-extension webhook until it responds, then (step 3) apply/replace
+      # the subscription against the now-stable host. The -replace also forces a
+      # re-read of the current blobs_extension key, which is rotated whenever the
+      # function app is recreated (Event Grid can't update an endpoint URL in
+      # place). Code-only demo deploys skip this job; they don't rotate the key.
+      - name: Apply infra (excluding Event Grid subscription) and let host settle
+        run: |
+          cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
+          terraform init -reconfigure \
+            -backend-config="resource_group_name=${AZURE_RESOURCE_GROUP_NAME}" \
+            -backend-config="storage_account_name=${AZURE_STORAGE_ACCOUNT_NAME}"
+          terraform apply -auto-approve \
+            -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
+            -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
+            -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
+            -var="AZURE_RESOURCE_GROUP_NAME=${AZURE_RESOURCE_GROUP_NAME}" \
+            -var="AZURE_SENDER_EMAIL=${TF_VAR_AZURE_SENDER_EMAIL}" \
+            -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}" \
+            -target=azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp \
+            -target=azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic \
+            -target=azurerm_monitor_diagnostic_setting.DocsFlowBlobTopicDiagnostics
+
+      - name: Wait for blob-extension webhook to be ready
+        run: |
+          # The blob-extension webhook must answer Event Grid's validation
+          # handshake. After a host restart (e.g. an app-setting change) it can
+          # take a bit to re-index. Poll until it responds before creating the
+          # subscription. The system key is fetched and used inside this single
+          # step and masked so it never lands in logs.
+          FUNC_HOST="docs-flow-clean-arch-fun.azurewebsites.net"
+          EXT_KEY=$(az functionapp keys list \
+            --name docs-flow-clean-arch-fun \
+            --resource-group "${AZURE_RESOURCE_GROUP_NAME}" \
+            --query "systemKeys.blobs_extension" -o tsv)
+          echo "::add-mask::$EXT_KEY"
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 -X POST \
+              "https://$FUNC_HOST/runtime/webhooks/blobs?functionName=Host.Functions.ProcessDocument&code=$EXT_KEY" \
+              -H "Content-Type: application/json" \
+              -H "aeg-event-type: Notification" \
+              -d '[]')
+            if [ "$STATUS" = "202" ] || [ "$STATUS" = "200" ]; then
+              echo "Blob-extension webhook ready (status $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i: webhook returned $STATUS, waiting 15s..."
+            sleep 15
+          done
+          echo "Blob-extension webhook not ready after retries (last status $STATUS)"
+          exit 1
+
+      - name: Create Event Grid subscription with Terraform
+        run: |
+          cd ${GITHUB_WORKSPACE}/cdk/azure/cdktf.out/stacks/${STACK_NAME}
+          # Scope this apply to ONLY the event subscription (-target). Without it,
+          # a full apply also reconciles the function app — which has a perpetual
+          # App Insights diff (APPINSIGHTS_INSTRUMENTATIONKEY in app_settings vs
+          # site_config.application_insights_key) that RESTARTS the host on every
+          # apply. That restart races Event Grid's synchronous webhook-validation
+          # handshake and fails the subscription create with 502 Bad Gateway.
+          # Targeting the subscription means the host is NOT touched here (step 1
+          # already applied app changes; step 2 confirmed the webhook is live), so
+          # validation hits a stable host. The host-keys data source is still read
+          # to populate the webhook URL's current blobs_extension key.
+          terraform apply -auto-approve \
+            -replace=azurerm_eventgrid_system_topic_event_subscription.DocsFlowBlobEventSubscription \
+            -target=azurerm_eventgrid_system_topic_event_subscription.DocsFlowBlobEventSubscription \
+            -var="AZURE_CLIENT_ID=${AZURE_OIDC_CLIENT_ID}" \
+            -var="AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" \
+            -var="AZURE_TENANT_ID=${AZURE_TENANT_ID}" \
+            -var="AZURE_RESOURCE_GROUP_NAME=${AZURE_RESOURCE_GROUP_NAME}" \
+            -var="AZURE_SENDER_EMAIL=${TF_VAR_AZURE_SENDER_EMAIL}" \
+            -var="RECIPIENT_EMAIL=${TF_VAR_RECIPIENT_EMAIL}"

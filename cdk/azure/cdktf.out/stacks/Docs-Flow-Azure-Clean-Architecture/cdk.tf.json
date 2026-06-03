@@ -6,9 +6,28 @@
       "version": "0.20.12"
     },
     "outputs": {
+      "Docs-Flow-Azure-Clean-Architecture": {
+        "function_app_name": "function_app_name",
+        "resource_group_name": "resource_group_name"
+      }
     }
   },
   "data": {
+    "azurerm_function_app_host_keys": {
+      "DocsFlowFunctionAppHostKeys": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowFunctionAppHostKeys",
+            "uniqueId": "DocsFlowFunctionAppHostKeys"
+          }
+        },
+        "depends_on": [
+          "azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp"
+        ],
+        "name": "${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.name}",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
+      }
+    },
     "azurerm_resource_group": {
       "ExistingResourceGroup": {
         "//": {
@@ -19,6 +38,16 @@
         },
         "name": "${var.AZURE_RESOURCE_GROUP_NAME}"
       }
+    }
+  },
+  "output": {
+    "function_app_name": {
+      "description": "The Azure Function App name",
+      "value": "${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.name}"
+    },
+    "resource_group_name": {
+      "description": "The Azure resource group name",
+      "value": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
     }
   },
   "provider": {
@@ -63,7 +92,51 @@
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}"
       }
     },
-    "azurerm_linux_function_app": {
+    "azurerm_eventgrid_system_topic": {
+      "DocsFlowBlobSystemTopic": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowBlobSystemTopic",
+            "uniqueId": "DocsFlowBlobSystemTopic"
+          }
+        },
+        "depends_on": [
+          "azurerm_storage_account.docs-flow-sa"
+        ],
+        "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
+        "name": "docsflow-blob-created-topic",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "source_arm_resource_id": "${azurerm_storage_account.docs-flow-sa.id}",
+        "topic_type": "Microsoft.Storage.StorageAccounts"
+      }
+    },
+    "azurerm_eventgrid_system_topic_event_subscription": {
+      "DocsFlowBlobEventSubscription": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowBlobEventSubscription",
+            "uniqueId": "DocsFlowBlobEventSubscription"
+          }
+        },
+        "depends_on": [
+          "azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic",
+          "azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp"
+        ],
+        "included_event_types": [
+          "Microsoft.Storage.BlobCreated"
+        ],
+        "name": "docsflow-process-document-sub",
+        "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "subject_filter": {
+          "subject_begins_with": "/blobServices/default/containers/docs-flow/"
+        },
+        "system_topic": "${azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic.name}",
+        "webhook_endpoint": {
+          "url": "https://${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.default_hostname}/runtime/webhooks/blobs?functionName=Host.Functions.ProcessDocument&code=${data.azurerm_function_app_host_keys.DocsFlowFunctionAppHostKeys.blobs_extension_key}"
+        }
+      }
+    },
+    "azurerm_function_app_flex_consumption": {
       "DocsFlowSpringCloudFunctionApp": {
         "//": {
           "metadata": {
@@ -77,30 +150,36 @@
           "APPLICATIONINSIGHTS_ENABLE_AGENT": "true",
           "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL": "INFO",
           "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL": "ERROR",
+          "AZURE_SENDER_EMAIL": "${var.AZURE_SENDER_EMAIL}",
+          "AzureWebJobsStorage__accountName": "docsflow",
+          "AzureWebJobsStorage__blobServiceUri": "${azurerm_storage_account.docs-flow-sa.primary_blob_endpoint}",
+          "AzureWebJobsStorage__credential": "managedidentity",
+          "AzureWebJobsStorage__queueServiceUri": "${azurerm_storage_account.docs-flow-sa.primary_queue_endpoint}",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
+          "RECIPIENT_EMAIL": "${var.RECIPIENT_EMAIL}",
           "TriggerBlobStorage__accountName": "docsflow",
-          "TriggerBlobStorage__credential": "managedidentity",
-          "WEBSITE_RUN_FROM_PACKAGE": "1"
+          "TriggerBlobStorage__credential": "managedidentity"
         },
         "depends_on": [
           "data.azurerm_resource_group.ExistingResourceGroup",
           "azurerm_service_plan.CleanArchitectureAppServicePlan",
-          "azurerm_application_insights.AppInsights"
+          "azurerm_application_insights.AppInsights",
+          "azurerm_storage_container.docs-flow-deployment-container"
         ],
         "identity": {
           "type": "SystemAssigned"
         },
         "location": "${data.azurerm_resource_group.ExistingResourceGroup.location}",
-        "name": "docs-flow-spring-clean-architecture-fun",
+        "name": "docs-flow-clean-arch-fun",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
+        "runtime_name": "java",
+        "runtime_version": "21",
         "service_plan_id": "${azurerm_service_plan.CleanArchitectureAppServicePlan.id}",
         "site_config": {
-          "application_stack": {
-            "java_version": "21"
-          }
         },
-        "storage_account_access_key": "${var.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}",
-        "storage_account_name": "${var.AZURE_STORAGE_ACCOUNT_NAME}"
+        "storage_authentication_type": "SystemAssignedIdentity",
+        "storage_container_endpoint": "${azurerm_storage_account.docs-flow-sa.primary_blob_endpoint}deploymentpackage",
+        "storage_container_type": "blobContainer"
       }
     },
     "azurerm_log_analytics_workspace": {
@@ -118,6 +197,28 @@
         "sku": "PerGB2018"
       }
     },
+    "azurerm_monitor_diagnostic_setting": {
+      "DocsFlowBlobTopicDiagnostics": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/DocsFlowBlobTopicDiagnostics",
+            "uniqueId": "DocsFlowBlobTopicDiagnostics"
+          }
+        },
+        "depends_on": [
+          "azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic",
+          "azurerm_log_analytics_workspace.DocsFlowLogAnalyticsWorkspace"
+        ],
+        "enabled_log": [
+          {
+            "category": "DeliveryFailures"
+          }
+        ],
+        "log_analytics_workspace_id": "${azurerm_log_analytics_workspace.DocsFlowLogAnalyticsWorkspace.id}",
+        "name": "eg-delivery-failures",
+        "target_resource_id": "${azurerm_eventgrid_system_topic.DocsFlowBlobSystemTopic.id}"
+      }
+    },
     "azurerm_role_assignment": {
       "DocsFlowFunctionAppACSEmailSenderRole": {
         "//": {
@@ -126,7 +227,7 @@
             "uniqueId": "DocsFlowFunctionAppACSEmailSenderRole"
           }
         },
-        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "principal_id": "${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_id": "${azurerm_role_definition.DocsFlowACSRoleDefinition.role_definition_resource_id}",
         "scope": "${azurerm_communication_service.DocsFlowACS.id}"
       },
@@ -137,7 +238,7 @@
             "uniqueId": "DocsFlowFunctionAppBlobStorageRole"
           }
         },
-        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "principal_id": "${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Blob Data Contributor",
         "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       },
@@ -148,7 +249,7 @@
             "uniqueId": "DocsFlowFunctionAppQueueContributorRole"
           }
         },
-        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "principal_id": "${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Queue Data Contributor",
         "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       },
@@ -159,7 +260,7 @@
             "uniqueId": "DocsFlowFunctionAppStorageContributorRole"
           }
         },
-        "principal_id": "${azurerm_linux_function_app.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
+        "principal_id": "${azurerm_function_app_flex_consumption.DocsFlowSpringCloudFunctionApp.identity[0].principal_id}",
         "role_definition_name": "Storage Account Contributor",
         "scope": "${azurerm_storage_account.docs-flow-sa.id}"
       }
@@ -205,7 +306,7 @@
         "name": "clean_architecture_app_plan",
         "os_type": "Linux",
         "resource_group_name": "${data.azurerm_resource_group.ExistingResourceGroup.name}",
-        "sku_name": "Y1"
+        "sku_name": "FC1"
       }
     },
     "azurerm_storage_account": {
@@ -237,6 +338,20 @@
         ],
         "name": "docs-flow",
         "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
+      },
+      "docs-flow-deployment-container": {
+        "//": {
+          "metadata": {
+            "path": "Docs-Flow-Azure-Clean-Architecture/docs-flow-deployment-container",
+            "uniqueId": "docs-flow-deployment-container"
+          }
+        },
+        "container_access_type": "private",
+        "depends_on": [
+          "azurerm_storage_account.docs-flow-sa"
+        ],
+        "name": "deploymentpackage",
+        "storage_account_id": "${azurerm_storage_account.docs-flow-sa.id}"
       }
     }
   },
@@ -246,7 +361,9 @@
         "container_name": "cleanarchterraformstorage",
         "key": "docs-flow-kscfunction/terraform.tfstate",
         "resource_group_name": "${resource_group_name}",
-        "storage_account_name": "${storage_account_name}"
+        "storage_account_name": "${storage_account_name}",
+        "use_azuread_auth": true,
+        "use_oidc": true
       }
     },
     "required_providers": {
@@ -265,12 +382,8 @@
       "description": "Azure resource group name",
       "type": "string"
     },
-    "AZURE_STORAGE_ACCOUNT_ACCESS_KEY": {
-      "description": "Storage account access key",
-      "type": "string"
-    },
-    "AZURE_STORAGE_ACCOUNT_NAME": {
-      "description": "Azure storage account name",
+    "AZURE_SENDER_EMAIL": {
+      "description": "Sender email address for notifications",
       "type": "string"
     },
     "AZURE_SUBSCRIPTION_ID": {
@@ -279,6 +392,10 @@
     },
     "AZURE_TENANT_ID": {
       "description": "Azure tenant ID",
+      "type": "string"
+    },
+    "RECIPIENT_EMAIL": {
+      "description": "Recipient email address for notifications",
       "type": "string"
     }
   }

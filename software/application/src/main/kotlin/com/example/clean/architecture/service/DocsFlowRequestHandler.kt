@@ -40,7 +40,7 @@ class DocsFlowRequestHandler(
             // Save the document to storage
             val documentUrl = objectStorage.save(id = documentId, content = body)
 
-            logger.info { "Document saved successfully with ID: $documentId at URL: $documentUrl" }
+            logger.info { "Document SAVED successfully with ID: $documentId at URL: $documentUrl" }
 
             // Return success response
             HttpResponse(

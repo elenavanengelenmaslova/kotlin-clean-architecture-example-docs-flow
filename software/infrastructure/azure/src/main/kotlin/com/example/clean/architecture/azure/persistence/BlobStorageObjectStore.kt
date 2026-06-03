@@ -6,6 +6,7 @@ import com.azure.storage.blob.sas.BlobSasPermission
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues
 import com.azure.storage.common.sas.SasProtocol
 import com.example.clean.architecture.persistence.ObjectStorageInterface
+import com.example.clean.architecture.warmup.Warmable
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
@@ -18,7 +19,19 @@ private val logger = KotlinLogging.logger {}
 class BlobStorageObjectStore(
     private val containerClient: BlobContainerClient,
     private val blobServiceClient: BlobServiceClient,
-) : ObjectStorageInterface {
+) : ObjectStorageInterface, Warmable {
+
+    /**
+     * Phase 2 priming: opens the network connection to Blob Storage and forces the
+     * `DefaultAzureCredential` managed-identity token fetch via a single low-cost
+     * `exists()` call. This is NOT a real upload/download — it only warms the
+     * connection and credential so the first production request avoids that latency.
+     */
+    override fun warmUp() {
+        logger.info { "Warming up Blob Storage connection and managed-identity credential" }
+        // exists() issues one lightweight request that forces the DefaultAzureCredential token fetch.
+        containerClient.exists()
+    }
 
     override fun save(id: String, content: ByteArray): String {
         logger.info { "Saving doc with id: $id" }

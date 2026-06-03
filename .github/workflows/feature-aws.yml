@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - '.kiro/**'
       - 'cdk/azure/**'
       - 'software/infrastructure/azure/**'
       - ".github/workflows/**-azure.yml"
@@ -20,3 +21,5 @@ jobs:
     secrets:
       aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
       role_name: ${{ secrets.OIDC_ROLE_NAME }}
+      aws_sender_email: ${{ secrets.AWS_SENDER_EMAIL }}
+      recipient_email: ${{ secrets.RECIPIENT_EMAIL }}

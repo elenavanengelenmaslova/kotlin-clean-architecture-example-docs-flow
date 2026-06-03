@@ -1,6 +1,8 @@
 package com.example.cdk.aws
 
 import com.hashicorp.cdktf.*
+import com.hashicorp.cdktf.providers.aws.api_gateway_account.ApiGatewayAccount
+import com.hashicorp.cdktf.providers.aws.api_gateway_account.ApiGatewayAccountConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_api_key.ApiGatewayApiKey
 import com.hashicorp.cdktf.providers.aws.api_gateway_api_key.ApiGatewayApiKeyConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_deployment.ApiGatewayDeployment
@@ -9,26 +11,35 @@ import com.hashicorp.cdktf.providers.aws.api_gateway_integration.ApiGatewayInteg
 import com.hashicorp.cdktf.providers.aws.api_gateway_integration.ApiGatewayIntegrationConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_method.ApiGatewayMethod
 import com.hashicorp.cdktf.providers.aws.api_gateway_method.ApiGatewayMethodConfig
+import com.hashicorp.cdktf.providers.aws.api_gateway_method_settings.ApiGatewayMethodSettings
+import com.hashicorp.cdktf.providers.aws.api_gateway_method_settings.ApiGatewayMethodSettingsConfig
+import com.hashicorp.cdktf.providers.aws.api_gateway_method_settings.ApiGatewayMethodSettingsSettings
 import com.hashicorp.cdktf.providers.aws.api_gateway_resource.ApiGatewayResource
 import com.hashicorp.cdktf.providers.aws.api_gateway_resource.ApiGatewayResourceConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_rest_api.ApiGatewayRestApi
 import com.hashicorp.cdktf.providers.aws.api_gateway_rest_api.ApiGatewayRestApiConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_stage.ApiGatewayStage
+import com.hashicorp.cdktf.providers.aws.api_gateway_stage.ApiGatewayStageAccessLogSettings
 import com.hashicorp.cdktf.providers.aws.api_gateway_stage.ApiGatewayStageConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan.ApiGatewayUsagePlan
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan.ApiGatewayUsagePlanApiStages
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan.ApiGatewayUsagePlanConfig
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan_key.ApiGatewayUsagePlanKey
 import com.hashicorp.cdktf.providers.aws.api_gateway_usage_plan_key.ApiGatewayUsagePlanKeyConfig
+import com.hashicorp.cdktf.providers.aws.cloudwatch_log_group.CloudwatchLogGroup
+import com.hashicorp.cdktf.providers.aws.cloudwatch_log_group.CloudwatchLogGroupConfig
 import com.hashicorp.cdktf.providers.aws.iam_policy.IamPolicy
 import com.hashicorp.cdktf.providers.aws.iam_policy.IamPolicyConfig
 import com.hashicorp.cdktf.providers.aws.iam_role.IamRole
 import com.hashicorp.cdktf.providers.aws.iam_role.IamRoleConfig
 import com.hashicorp.cdktf.providers.aws.iam_role_policy.IamRolePolicy
 import com.hashicorp.cdktf.providers.aws.iam_role_policy.IamRolePolicyConfig
+import com.hashicorp.cdktf.providers.aws.iam_role_policy_attachment.IamRolePolicyAttachment
+import com.hashicorp.cdktf.providers.aws.iam_role_policy_attachment.IamRolePolicyAttachmentConfig
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunction
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionConfig
 import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionEnvironment
+import com.hashicorp.cdktf.providers.aws.lambda_function.LambdaFunctionSnapStart
 import com.hashicorp.cdktf.providers.aws.lambda_permission.LambdaPermission
 import com.hashicorp.cdktf.providers.aws.lambda_permission.LambdaPermissionConfig
 import com.hashicorp.cdktf.providers.aws.provider.AwsProvider
@@ -68,6 +79,26 @@ class AwsStack(
                 .build()
         )
         val account = accountVar.stringValue
+
+        val senderEmailVar = TerraformVariable(
+            this,
+            "AWS_SENDER_EMAIL",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("The sender email address for SES notifications")
+                .build()
+        )
+        val senderEmail = senderEmailVar.stringValue
+
+        val recipientEmailVar = TerraformVariable(
+            this,
+            "RECIPIENT_EMAIL",
+            TerraformVariableConfig.builder()
+                .type("string")
+                .description("The recipient email address for SES notifications")
+                .build()
+        )
+        val recipientEmail = recipientEmailVar.stringValue
         // Configure the AWS Provider
         AwsProvider(
             this,
@@ -202,7 +233,17 @@ class AwsStack(
                     )
                 )
                 .memorySize(1024)
-                //.snapStart { "PublishedVersions" }
+                .architectures(listOf("arm64"))
+                // Enable SnapStart on published versions and publish a new version on each
+                // deployment (driven by the source_code_hash). SnapStart snapshots are only
+                // created for published versions, so the API Gateway integration below must
+                // invoke the qualified (versioned) ARN for SnapStart to take effect.
+                .snapStart(
+                    LambdaFunctionSnapStart.builder()
+                        .applyOn("PublishedVersions")
+                        .build()
+                )
+                .publish(true)
                 .environment(
                     LambdaFunctionEnvironment.builder()
                         .variables(
@@ -210,6 +251,8 @@ class AwsStack(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "uploadDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
+                                "AWS_SENDER_EMAIL" to senderEmail,
+                                "RECIPIENT_EMAIL" to recipientEmail,
                                 //Stop at level 1 (C1 compiler)
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
@@ -240,6 +283,13 @@ class AwsStack(
                     )
                 )
                 .memorySize(1024)
+                .architectures(listOf("arm64"))
+                .snapStart(
+                    LambdaFunctionSnapStart.builder()
+                        .applyOn("PublishedVersions")
+                        .build()
+                )
+                .publish(true)
                 .environment(
                     LambdaFunctionEnvironment.builder()
                         .variables(
@@ -247,11 +297,103 @@ class AwsStack(
                                 "SPRING_CLOUD_FUNCTION_DEFINITION" to "processDocument",
                                 "MAIN_CLASS" to "com.example.clean.architecture.Application",
                                 "AWS_S3_BUCKET_NAME" to s3Bucket.bucket,
+                                "AWS_SENDER_EMAIL" to senderEmail,
+                                "RECIPIENT_EMAIL" to recipientEmail,
                                 "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
                             )
                         ).build()
                 )
                 .timeout(120)
+                .build()
+        )
+
+        // Create Health Check Lambda function
+        val healthCheckLambda = LambdaFunction(
+            this,
+            "DocsFlow-HealthCheck-Fun",
+            LambdaFunctionConfig.builder()
+                .functionName("DocsFlow-HealthCheck-Fun")
+                .handler("org.springframework.cloud.function.adapter.aws.FunctionInvoker")
+                .runtime("java21")
+                .s3Bucket("lambda-deployment-clean-architecture-example")
+                .s3Key("docs-flow-aws-function.jar")
+                .sourceCodeHash(
+                    Fn.filebase64sha256("../../../../../build/dist/docs-flow-aws-function.jar")
+                )
+                .role(lambdaRole.arn)
+                .dependsOn(
+                    listOf(
+                        lambdaRole
+                    )
+                )
+                .memorySize(1024)
+                .architectures(listOf("arm64"))
+                .snapStart(
+                    LambdaFunctionSnapStart.builder()
+                        .applyOn("PublishedVersions")
+                        .build()
+                )
+                .publish(true)
+                .environment(
+                    LambdaFunctionEnvironment.builder()
+                        .variables(
+                            mapOf(
+                                "SPRING_CLOUD_FUNCTION_DEFINITION" to "healthCheck",
+                                "MAIN_CLASS" to "com.example.clean.architecture.Application",
+                                "AWS_SENDER_EMAIL" to senderEmail,
+                                "RECIPIENT_EMAIL" to recipientEmail,
+                                "JAVA_TOOL_OPTIONS" to "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+                            )
+                        ).build()
+                )
+                .timeout(30)
+                .build()
+        )
+
+        // ---------------------------------------------------------------------
+        // API Gateway account-level CloudWatch logging role.
+        // API Gateway needs an account-wide IAM role (set via aws_api_gateway_account)
+        // before any stage can push execution/access logs to CloudWatch Logs. Without
+        // it, enabling method-level logging fails with
+        // "CloudWatch Logs role ARN must be set in account settings".
+        // This role is assumable only by the API Gateway service and carries just the
+        // AWS managed push-to-CloudWatch-Logs policy (least privilege).
+        // ---------------------------------------------------------------------
+        val apiGatewayCloudWatchRole = IamRole(
+            this,
+            "DocsFlow-ApiGateway-CloudWatch-Role",
+            IamRoleConfig.builder()
+                .name("DocsFlow-ApiGateway-CloudWatch-Role")
+                .assumeRolePolicy(
+                    """{
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Principal": {"Service": "apigateway.amazonaws.com"},
+                            "Effect": "Allow"
+                        }
+                    ]
+                }"""
+                ).build()
+        )
+
+        IamRolePolicyAttachment(
+            this,
+            "DocsFlow-ApiGateway-CloudWatch-RoleAttachment",
+            IamRolePolicyAttachmentConfig.builder()
+                .role(apiGatewayCloudWatchRole.name)
+                .policyArn("arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs")
+                .build()
+        )
+
+        // Account-level setting that points API Gateway at the CloudWatch role above.
+        // This is region-wide (one per account/region) and was explicitly approved.
+        val apiGatewayAccount = ApiGatewayAccount(
+            this,
+            "DocsFlow-ApiGateway-Account",
+            ApiGatewayAccountConfig.builder()
+                .cloudwatchRoleArn(apiGatewayCloudWatchRole.arn)
                 .build()
         )
 
@@ -291,12 +433,14 @@ class AwsStack(
                 .build()
         )
 
-        // Grant API Gateway permission to invoke Lambda for proxy endpoints
+        // Grant API Gateway permission to invoke Lambda for proxy endpoints.
+        // Qualified to the published version so SnapStart-restored invocations are authorized.
         val lambdaPermissionAPI = LambdaPermission(
             this,
             "DocsFlow-Spring-Clean-Architecture-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(lambdaFunction.functionName)
+                .qualifier(lambdaFunction.version)
                 .action("lambda:InvokeFunction")
                 .principal("apigateway.amazonaws.com")
                 .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
@@ -304,7 +448,8 @@ class AwsStack(
         )
 
 
-        // Create Lambda integration for docs-flow endpoint
+        // Create Lambda integration for docs-flow endpoint.
+        // Invoke the published version (qualifiedInvokeArn) so SnapStart takes effect.
         val docsFlowIntegration = ApiGatewayIntegration(
             this,
             "DocsFlow-Integration",
@@ -315,21 +460,122 @@ class AwsStack(
                 .httpMethod(docsFlowMethod.httpMethod)
                 .integrationHttpMethod("POST")
                 .type("AWS_PROXY")
-                .uri("arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${lambdaFunction.arn}/invocations")
+                .uri(lambdaFunction.qualifiedInvokeArn)
+                .build()
+        )
+
+        // Create API Gateway Resource for health check endpoint
+        val healthResource = ApiGatewayResource(
+            this,
+            "Health-Resource",
+            ApiGatewayResourceConfig.builder()
+                .restApiId(api.id)
+                .parentId(api.rootResourceId)
+                .pathPart("health")
+                .build()
+        )
+
+        // Create API Gateway Method for health check endpoint (GET)
+        val healthMethod = ApiGatewayMethod(
+            this,
+            "Health-Method",
+            ApiGatewayMethodConfig.builder()
+                .restApiId(api.id)
+                .resourceId(healthResource.id)
+                .httpMethod("GET")
+                .authorization("NONE")
+                .apiKeyRequired(true)  // Require API key
+                .build()
+        )
+
+        // Grant API Gateway permission to invoke Health Check Lambda (published version)
+        val healthCheckLambdaPermission = LambdaPermission(
+            this,
+            "DocsFlow-HealthCheck-Permission",
+            LambdaPermissionConfig.builder()
+                .functionName(healthCheckLambda.functionName)
+                .qualifier(healthCheckLambda.version)
+                .action("lambda:InvokeFunction")
+                .principal("apigateway.amazonaws.com")
+                .sourceArn("arn:aws:execute-api:$region:$account:${api.id}/*/*/*")
+                .build()
+        )
+
+        // Create Lambda integration for health check endpoint.
+        // Invoke the published version (qualifiedInvokeArn) so SnapStart takes effect.
+        val healthIntegration = ApiGatewayIntegration(
+            this,
+            "Health-Integration",
+            ApiGatewayIntegrationConfig.builder()
+                .restApiId(api.id)
+                .dependsOn(listOf(healthCheckLambdaPermission))
+                .resourceId(healthResource.id)
+                .httpMethod(healthMethod.httpMethod)
+                .integrationHttpMethod("POST")
+                .type("AWS_PROXY")
+                .uri(healthCheckLambda.qualifiedInvokeArn)
                 .build()
         )
 
         // Create API Gateway Deployment
+        // A redeploy MUST be triggered whenever the API surface changes; otherwise the
+        // stage keeps serving the previous deployment and new routes (e.g. /health) return
+        // 403 "Missing Authentication Token". The triggers hash forces a new deployment.
+        //
+        // The hash ALSO includes each Lambda's published `version`. The integration `uri`
+        // embeds the qualified (versioned) invoke ARN, but the resource/method/integration
+        // IDs do NOT change when only the published version changes. Without the version in
+        // the trigger, a deploy that publishes a new Lambda version leaves the live stage
+        // pointed at a stale version, so API Gateway gets AccessDenied from Lambda and
+        // returns a 500 with no function invocation logs. Including the versions forces a
+        // redeploy whenever SnapStart publishes a new version.
         val deployment = ApiGatewayDeployment(
             this,
             "DocsFlow-Spring-Clean-Architecture-Deployment",
             ApiGatewayDeploymentConfig.builder()
                 .restApiId(api.id)
-                .dependsOn(listOf(docsFlowIntegration))
+                .dependsOn(listOf(docsFlowIntegration, healthIntegration))
+                .triggers(
+                    mapOf(
+                        "redeployment" to Fn.sha1(
+                            Fn.jsonencode(
+                                listOf(
+                                    docsFlowResource.id,
+                                    docsFlowMethod.id,
+                                    docsFlowIntegration.id,
+                                    healthResource.id,
+                                    healthMethod.id,
+                                    healthIntegration.id,
+                                    lambdaFunction.version,
+                                    healthCheckLambda.version,
+                                    documentProcessorLambda.version
+                                )
+                            )
+                        )
+                    )
+                )
+                .lifecycle(
+                    TerraformResourceLifecycle.builder()
+                        .createBeforeDestroy(true)
+                        .build()
+                )
+                .build()
+        )
+
+        // CloudWatch log group that receives the API Gateway stage access logs.
+        val accessLogGroup = CloudwatchLogGroup(
+            this,
+            "DocsFlow-ApiGateway-AccessLogs",
+            CloudwatchLogGroupConfig.builder()
+                .name("/aws/api-gateway/DocsFlow-Spring-Clean-Architecture-API/demo")
+                .retentionInDays(14)
                 .build()
         )
 
         // Create API Gateway Stage
+        // Access logging is attached here so every request is recorded with its
+        // integration status/error, which surfaces the real cause of 5xx responses
+        // (e.g. Lambda AccessDenied) even when the function itself never runs.
         val stage = ApiGatewayStage(
             this,
             "DocsFlow-Spring-Clean-Architecture-Stage",
@@ -337,6 +583,36 @@ class AwsStack(
                 .restApiId(api.id)
                 .deploymentId(deployment.id)
                 .stageName("demo")
+                .accessLogSettings(
+                    ApiGatewayStageAccessLogSettings.builder()
+                        .destinationArn(accessLogGroup.arn)
+                        .format(
+                            """{"requestId":"${'$'}context.requestId","ip":"${'$'}context.identity.sourceIp","httpMethod":"${'$'}context.httpMethod","resourcePath":"${'$'}context.resourcePath","status":"${'$'}context.status","integrationStatus":"${'$'}context.integration.status","integrationErrorMessage":"${'$'}context.integration.error","responseLatency":"${'$'}context.responseLatency"}"""
+                        )
+                        .build()
+                )
+                .build()
+        )
+
+        // Per-method execution logging + CloudWatch metrics for ALL methods on the stage.
+        // Depends on the account-level CloudWatch role being configured first, otherwise
+        // API Gateway rejects the setting. dataTraceEnabled emits full request/response
+        // trace entries to the execution logs to pinpoint the failing integration.
+        ApiGatewayMethodSettings(
+            this,
+            "DocsFlow-ApiGateway-MethodSettings",
+            ApiGatewayMethodSettingsConfig.builder()
+                .restApiId(api.id)
+                .stageName(stage.stageName)
+                .methodPath("*/*")
+                .dependsOn(listOf(apiGatewayAccount))
+                .settings(
+                    ApiGatewayMethodSettingsSettings.builder()
+                        .metricsEnabled(true)
+                        .loggingLevel("INFO")
+                        .dataTraceEnabled(true)
+                        .build()
+                )
                 .build()
         )
 
@@ -381,20 +657,41 @@ class AwsStack(
                 .build()
         )
 
+        // Terraform Outputs for pipeline health check
+        TerraformOutput(
+            this,
+            "api_gateway_url",
+            TerraformOutputConfig.builder()
+                .value("https://${api.id}.execute-api.$region.amazonaws.com/${stage.stageName}")
+                .description("The base URL of the API Gateway stage")
+                .build()
+        )
 
-        // Grant S3 permission to invoke the document processor Lambda
+        TerraformOutput(
+            this,
+            "api_key_name",
+            TerraformOutputConfig.builder()
+                .value(apiKey.name)
+                .description("The name of the API key for lookup via AWS CLI")
+                .build()
+        )
+
+
+        // Grant S3 permission to invoke the document processor Lambda (published version)
         val s3LambdaPermission = LambdaPermission(
             this,
             "DocsFlow-S3-Permission",
             LambdaPermissionConfig.builder()
                 .functionName(documentProcessorLambda.functionName)
+                .qualifier(documentProcessorLambda.version)
                 .action("lambda:InvokeFunction")
                 .principal("s3.amazonaws.com")
                 .sourceArn(s3Bucket.arn)
                 .build()
         )
 
-        // Configure S3 bucket to trigger Lambda when objects are created
+        // Configure S3 bucket to trigger Lambda when objects are created.
+        // Target the published version (qualifiedArn) so SnapStart takes effect.
         val s3BucketNotification = S3BucketNotification(
             this,
             "DocsFlow-S3-Notification",
@@ -405,7 +702,7 @@ class AwsStack(
                     listOf(
                         S3BucketNotificationLambdaFunction.builder()
                             .events(listOf("s3:ObjectCreated:*"))
-                            .lambdaFunctionArn(documentProcessorLambda.arn)
+                            .lambdaFunctionArn(documentProcessorLambda.qualifiedArn)
                             .build()
                     )
                 )

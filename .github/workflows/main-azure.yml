@@ -5,6 +5,7 @@ on:
 #    paths-ignore:
 #      - '**.md'
 #      - 'docs/**'
+#      - '.kiro/**'
 #      - 'cdk/aws/**'
 #      - 'software/infrastructure/aws/**'
 #      - ".github/workflows/**-aws.yml"
@@ -22,4 +23,5 @@ jobs:
       azure_oidc_client_id: ${{ secrets.AZURE_OIDC_CLIENT_ID }}
       azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
       azure_storage_account_name: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
-      azure_storage_account_access_key: ${{ secrets.AZURE_STORAGE_ACCOUNT_ACCESS_KEY }}
+      azure_sender_email: ${{ secrets.AZURE_SENDER_EMAIL }}
+      recipient_email: ${{ secrets.RECIPIENT_EMAIL }}
