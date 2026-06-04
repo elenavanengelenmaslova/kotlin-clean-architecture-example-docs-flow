@@ -17,7 +17,7 @@ class AutoDocumentReviewer(
         val linkToDocument = "Hello World"
 
         val review = "${someVeryComplexReviewBusinessLogic()}\n Download at: $linkToDocument"
-        // TODO: add log line
+        // TODO: add log line just for fun
         // TODO: send email
         review
     }.onFailure { logger.error(it) { "Failed to generate and send a review: ${it.message}" } }
