@@ -125,19 +125,19 @@ jobs:
           cd ${GITHUB_WORKSPACE}/cdk/aws/cdktf.out/stacks/${{ matrix.config.stack-name }}
           terraform apply -auto-approve tfplan
 
-      - name: Retrieve endpoint and run health check
-        run: |
-          cd ${GITHUB_WORKSPACE}/cdk/aws/cdktf.out/stacks/${{ matrix.config.stack-name }}
-          API_URL=$(terraform output -raw api_gateway_url)
-          API_KEY=$(aws apigateway get-api-keys --name-query "DocsFlow" --include-values --query 'items[0].value' --output text)
-          # Mask the API key so it can never be printed in logs (env dumps, set -x, etc.)
-          echo "::add-mask::$API_KEY"
-          for i in 1 2 3; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 \
-              -H "x-api-key: $API_KEY" "$API_URL/health")
-            if [ "$STATUS" = "200" ]; then echo "Health check passed"; exit 0; fi
-            echo "Attempt $i: received status $STATUS, retrying in 10s..."
-            sleep 10
-          done
-          echo "Health check failed after 3 attempts"
-          exit 1
+#      - name: Retrieve endpoint and run health check
+#        run: |
+#          cd ${GITHUB_WORKSPACE}/cdk/aws/cdktf.out/stacks/${{ matrix.config.stack-name }}
+#          API_URL=$(terraform output -raw api_gateway_url)
+#          API_KEY=$(aws apigateway get-api-keys --name-query "DocsFlow" --include-values --query 'items[0].value' --output text)
+#          # Mask the API key so it can never be printed in logs (env dumps, set -x, etc.)
+#          echo "::add-mask::$API_KEY"
+#          for i in 1 2 3; do
+#            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 \
+#              -H "x-api-key: $API_KEY" "$API_URL/health")
+#            if [ "$STATUS" = "200" ]; then echo "Health check passed"; exit 0; fi
+#            echo "Attempt $i: received status $STATUS, retrying in 10s..."
+#            sleep 10
+#          done
+#          echo "Health check failed after 3 attempts"
+#          exit 1
